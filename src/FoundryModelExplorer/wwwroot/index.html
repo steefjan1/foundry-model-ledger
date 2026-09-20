@@ -61,6 +61,35 @@
   .bar i { display: block; height: 100%; background: var(--ok); }
   .bar.warning i { background: var(--warn); } .bar.serious i { background: var(--serious); } .bar.deprecated i { background: var(--bad); }
   .conf { font-size: 11px; color: var(--ink-3); }
+  .suggest-wrap { position: relative; }
+  .suggest { position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(31,41,51,.12); z-index: 20; }
+  .suggest div { padding: 7px 12px; font-size: 13px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+  .suggest div:hover, .suggest div.hl { background: var(--brand-soft); }
+  .suggest .v { color: var(--ink-3); font-family: var(--mono); font-size: 12px; }
+  .suggest .p { margin-left: auto; color: var(--ink-3); font-size: 11px; }
+  .suggest .none { color: var(--ink-3); cursor: default; }
+  .alt-opts { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .alt-opts .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); font-weight: 600; margin-bottom: 6px; }
+  .alt-work { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--ink-2); }
+  .alt-work input[type=number] { width: 64px; padding: 4px 6px; border: 1px solid #cbd2d9; border-radius: 6px; font: inherit; }
+  #altGrid tr.ref td { background: var(--brand-soft); }
+  #altGrid .cheaper { color: var(--ok); font-weight: 600; } #altGrid .dearer { color: var(--serious); font-weight: 600; }
+  .map-wrap { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+  #worldmap { width: 100%; height: auto; display: block; }
+  #worldmap .land { fill: #dde3ec; stroke: #c9d1dc; stroke-width: .6px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  #worldmap .rg { cursor: default; }
+  #worldmap .rg circle { stroke: #fff; }
+  #worldmap .rg.available circle { fill: var(--brand); }
+  #worldmap .rg.absent circle { fill: #b8c2cc; }
+  #worldmap .rg.nocat circle { fill: none; stroke: var(--ink-3); }
+  #worldmap .rg.neutral circle { fill: var(--brand-2); }
+  #worldmap .rg.error circle { fill: var(--warn); }
+  #worldmap .rg text { fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: .25em; pointer-events: none; font-family: "Segoe UI", system-ui, sans-serif; }
+  #worldmap .rg.available text { fill: var(--brand); font-weight: 600; }
+  #worldmap .rg.absent text, #worldmap .rg.nocat text { fill: var(--ink-3); }
+  #worldmap .rg.error text { fill: var(--warn); }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .dot.available { background: var(--brand); } .dot.absent { background: #b8c2cc; } .dot.nocat { border: 1px dashed var(--ink-3); } .dot.neutral { background: var(--brand-2); }
   .geo { margin: 8px 0 2px; font-size: 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
   .chip.avail { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); cursor: default; }
   .chip.absent { color: var(--ink-3); cursor: default; }
@@ -93,6 +122,8 @@
   <button data-tab="models" class="active">Models</button>
   <button data-tab="deployments">My deployments</button>
   <button data-tab="meters">Price meters</button>
+  <button data-tab="map">Availability map</button>
+  <button data-tab="alt">Alternatives</button>
 </nav>
 
 <main>
@@ -243,6 +274,76 @@
       </div>
     </div>
 
+    <div id="tab-map" class="hide">
+      <div class="card">
+        <div class="toolbar">
+          <h2 style="margin:0">Where is a model available?</h2>
+          <span class="grow"></span>
+          <div class="suggest-wrap">
+            <input type="text" id="mapModel" autocomplete="off" placeholder="type a model name, e.g. mistral or gpt-5" style="width:360px">
+            <div class="suggest hide" id="mapSuggest"></div>
+          </div>
+          <button class="btn primary" id="mapCheck">Check regions</button>
+        </div>
+        <div class="muted" id="mapMeta" style="margin-bottom:10px">Every Azure region, plotted from the subscription's location metadata. Pick a model version from the current catalog to see where it is available.</div>
+        <div class="chips" id="mapViews" style="margin-bottom:8px">
+          <span class="chip on" data-view="world">World</span>
+          <span class="chip" data-view="europe">Europe</span>
+          <span class="chip" data-view="northamerica">North America</span>
+          <span class="chip" data-view="asiapacific">Asia Pacific</span>
+          <span class="chip" data-view="middleeastafrica">Middle East &amp; Africa</span>
+          <span class="chip" data-view="southamerica">South America</span>
+        </div>
+        <div class="map-wrap"><svg id="worldmap" viewBox="0 14 1000 397" preserveAspectRatio="xMidYMid meet"></svg></div>
+        <div class="chips" style="margin-top:10px; font-size:12px">
+          <span class="tag"><i class="dot available"></i> available</span>
+          <span class="tag"><i class="dot absent"></i> not in this region's catalog</span>
+          <span class="tag"><i class="dot nocat"></i> no Azure AI services</span>
+          <span class="tag"><i class="dot neutral"></i> hosts AI services (no model selected)</span>
+        </div>
+        <div id="mapList" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <div id="tab-alt" class="hide">
+      <div class="card">
+        <div class="toolbar">
+          <h2 style="margin:0">Alternatives with the same capabilities</h2>
+          <span class="grow"></span>
+          <div class="suggest-wrap">
+            <input type="text" id="altModel" autocomplete="off" placeholder="model you use or consider, e.g. gpt-5" style="width:360px">
+            <div class="suggest hide" id="altSuggest"></div>
+          </div>
+          <button class="btn primary" id="altFind">Find alternatives</button>
+        </div>
+        <div class="muted" id="altMeta" style="margin-bottom:10px">Pick a model version. Every other model in this region's catalog that reports the same capabilities is listed with its list price and what your workload would cost on it instead.</div>
+        <div id="altBody" class="hide">
+          <div class="alt-opts">
+            <div>
+              <div class="lbl">Capabilities the alternative must have <span class="muted">(click to drop one you do not need)</span></div>
+              <div class="chips" id="altCaps"></div>
+            </div>
+            <div class="alt-work">
+              <div class="lbl">Your monthly workload</div>
+              <label>Input tokens <input type="number" id="altIn" value="10" min="0" step="1"> M</label>
+              <label>Output tokens <input type="number" id="altOut" value="2" min="0" step="1"> M</label>
+              <label><input type="checkbox" id="altSamePub"> same publisher only</label>
+              <label><input type="checkbox" id="altPriced" checked> priced only</label>
+              <label><input type="checkbox" id="altGa"> GA only</label>
+            </div>
+          </div>
+          <div class="muted" id="altCount" style="margin:10px 0 6px"></div>
+          <div style="overflow:auto">
+            <table id="altGrid">
+              <thead><tr><th>Model</th><th>Version</th><th>Lifecycle</th><th>Retires</th><th class="num">Context</th><th>Extra capabilities</th><th class="num">Input / 1M</th><th class="num">Output / 1M</th><th class="num">Monthly</th><th class="num">vs. reference</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="empty hide" id="altEmpty">No other model in this region reports all of the selected capabilities. Drop a capability chip you do not need, or untick "priced only".</div>
+        </div>
+      </div>
+    </div>
+
     <div id="tab-meters" class="hide">
       <div class="card">
         <div class="toolbar">
@@ -264,6 +365,7 @@
 </main>
 <footer>Prices are public retail list prices from the Azure Retail Prices API and are matched to catalog models heuristically; always confirm on the Azure pricing page before committing a budget. Retirement dates come from the ARM model catalog (deprecation.inference).</footer>
 
+<script src="world.js"></script>
 <script>
 (function () {
   const $ = (s, r = document) => r.querySelector(s);
@@ -346,6 +448,7 @@
       const c = await api(`/api/models?region=${encodeURIComponent(state.region)}&currency=${encodeURIComponent(state.currency)}`);
       if (c.note) { resetCatalogView('no model catalog in this region'); notice('info', esc(c.note)); return; }
       state.catalog = c; state.models = c.models;
+      if (altState.ref) renderAlt();
       $('#emptyModels').textContent = 'No models match these filters.';
       for (const w of c.warnings || []) notice('warn', esc(w));
       if (c.source === 'sample') notice('info', 'Showing the embedded <b>sample snapshot</b> (CATALOG_SOURCE=sample). Point AZURE_SUBSCRIPTION_ID at a subscription and set CATALOG_SOURCE=azure for live data.');
@@ -525,6 +628,169 @@
     $('#meterGrid tbody').innerHTML = items.slice(0, 800).map(i => { const p = per1M(i.retailPrice, i.unitOfMeasure || '', i.meterName || ''); return `<tr><td class="muted">${esc(i.productName)}</td><td class="mono">${esc(i.skuName)}</td><td class="mono">${esc(i.meterName)}</td><td class="num">${i.retailPrice}</td><td class="mono">${esc(i.unitOfMeasure)}</td><td class="num">${p == null ? '—' : fmtMoney(p, state.meters.currency)}</td><td class="muted">${esc(i.type)}</td></tr>`; }).join('');
   }
 
+  // ---------- availability map ----------
+  const mapState = { regions: null, result: null };
+  const project = (lat, lon) => [(lon + 180) / 360 * 1000, (90 - lat) / 180 * 500];
+  async function loadMap() {
+    if (!mapState.regions) {
+      try { mapState.regions = (await api('/api/regions')).regions; } catch (e) { $('#mapMeta').textContent = 'Could not list regions: ' + e.message; return; }
+    }
+    if (state.selected && !$('#mapModel').value) $('#mapModel').value = state.selected;
+    renderMap();
+  }
+  // viewBox per view: [x, y, w, h] in the 1000x500 equirectangular space (x = (lon+180)/360*1000, y = (90-lat)/180*500).
+  const mapViews = { world: [0, 14, 1000, 397], europe: [440, 55, 190, 110], northamerica: [150, 70, 330, 190], asiapacific: [640, 90, 360, 260], middleeastafrica: [520, 130, 260, 220], southamerica: [230, 250, 220, 190] };
+  mapState.view = 'world';
+  function renderMap() {
+    const svg = $('#worldmap');
+    const vb = mapViews[mapState.view] || mapViews.world;
+    svg.setAttribute('viewBox', vb.join(' '));
+    // Keep dots and text the same size on screen whatever the zoom: scale them by the view width.
+    const k = vb[2] / 1000, font = 7 * k, rBig = 5 * k, rSmall = 3.5 * k, pad = 5 * k;
+    const statusOf = {}; for (const r of mapState.result?.regions || []) statusOf[r.name] = r.status;
+    const items = mapState.regions.filter(r => r.latitude != null && r.longitude != null);
+    const dots = items.map(r => { const [x, y] = project(r.latitude, r.longitude); const st = mapState.result ? (statusOf[r.name] || (r.hostsFoundry ? 'absent' : 'nocat')) : (r.hostsFoundry ? 'neutral' : 'nocat'); return { r, x, y, st }; })
+      .filter(d => d.x >= vb[0] - 20 && d.x <= vb[0] + vb[2] + 20 && d.y >= vb[1] - 20 && d.y <= vb[1] + vb[3] + 20);
+    // Labels: available regions first, then the rest; each label tries right, left, above, below and is dropped if
+    // every position collides with a dot or an earlier label. Hover always shows the name.
+    const rank = d => d.st === 'available' ? 0 : d.st === 'neutral' ? 1 : d.st === 'absent' ? 2 : 3;
+    dots.sort((a, b) => rank(a) - rank(b) || a.y - b.y);
+    const placed = dots.map(d => ({ x1: d.x - rSmall, x2: d.x + rSmall, y1: d.y - rSmall, y2: d.y + rSmall }));
+    const fits = box => !placed.some(p => box.x1 < p.x2 && box.x2 > p.x1 && box.y1 < p.y2 && box.y2 > p.y1);
+    for (const d of dots) {
+      const w = d.r.displayName.length * font * 0.53 + 2 * k, h = font * 1.3;
+      const cands = [
+        { side: 'r', box: { x1: d.x + pad, x2: d.x + pad + w, y1: d.y - h / 2, y2: d.y + h / 2 }, tx: d.x + pad + k, ty: d.y + font * 0.35, anchor: 'start' },
+        { side: 'l', box: { x1: d.x - pad - w, x2: d.x - pad, y1: d.y - h / 2, y2: d.y + h / 2 }, tx: d.x - pad - k, ty: d.y + font * 0.35, anchor: 'end' },
+        { side: 'b', box: { x1: d.x - w / 2, x2: d.x + w / 2, y1: d.y + pad, y2: d.y + pad + h }, tx: d.x, ty: d.y + pad + font, anchor: 'middle' },
+        { side: 't', box: { x1: d.x - w / 2, x2: d.x + w / 2, y1: d.y - pad - h, y2: d.y - pad }, tx: d.x, ty: d.y - pad - font * 0.3, anchor: 'middle' },
+      ];
+      d.label = cands.find(c => fits(c.box)) || null;
+      if (d.label) placed.push(d.label.box);
+    }
+    const g = dots.map(d => `<g class="rg ${d.st}"><title>${esc(d.r.displayName)} (${esc(d.r.name)}) · ${esc(d.st)}</title><circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${(d.st === 'available' ? rBig : rSmall).toFixed(2)}" stroke-width="${k.toFixed(2)}"${d.st === 'nocat' ? ` stroke-dasharray="${(2 * k).toFixed(2)} ${(1.5 * k).toFixed(2)}"` : ''}></circle>${d.label ? `<text x="${d.label.tx.toFixed(1)}" y="${d.label.ty.toFixed(1)}" font-size="${font.toFixed(2)}" text-anchor="${d.label.anchor}">${esc(d.r.displayName)}</text>` : ''}</g>`).join('');
+    svg.innerHTML = `<path class="land" d="${window.WORLD_LAND || ''}"></path>${g}`;
+    const res = mapState.result;
+    const hidden = dots.filter(d => !d.label).length;
+    const hint = hidden ? ` ${hidden} label${hidden > 1 ? 's' : ''} hidden to avoid overlap; hover a dot or zoom in.` : '';
+    if (res) {
+      $('#mapMeta').textContent = `${res.name} ${res.version}: available in ${res.availableIn} of ${res.regionsChecked} regions that host Azure AI services.` + hint;
+      const groups = {}; for (const r of res.regions) (groups[r.geography || 'Other'] ||= []).push(r);
+      $('#mapList').innerHTML = Object.entries(groups).map(([gname, rs]) => `<div class="geo">${esc(gname)}</div><div class="chips">${rs.map(r => `<span class="chip ${r.status === 'available' ? 'avail' : r.status === 'absent' ? 'absent' : 'err'}">${r.status === 'available' ? '● ' : r.status === 'absent' ? '○ ' : '▲ '}${esc(r.displayName)}</span>`).join('')}</div>`).join('');
+    } else {
+      $('#mapMeta').textContent = `${items.length} Azure regions, ${items.filter(r => r.hostsFoundry).length} of them host Azure AI services. Pick a model version from the current catalog to see where it is available.` + hint;
+      $('#mapList').innerHTML = '';
+    }
+  }
+  $('#mapViews').addEventListener('click', e => { const c = e.target.closest('[data-view]'); if (!c) return; mapState.view = c.dataset.view; $$('#mapViews .chip').forEach(x => x.classList.toggle('on', x === c)); renderMap(); });
+  $('#mapCheck').addEventListener('click', async () => {
+    const mm = resolveModel('#mapModel', '#mapMeta', mapSuggest.show); if (!mm) return; const v = mm.id;
+    const i = v.lastIndexOf(':');
+    const btn = $('#mapCheck'); btn.disabled = true; $('#mapMeta').textContent = 'Checking every region…';
+    try { mapState.result = await api(`/api/availability?name=${encodeURIComponent(v.slice(0, i))}&version=${encodeURIComponent(v.slice(i + 1))}`); renderMap(); }
+    catch (e) { $('#mapMeta').textContent = 'Check failed: ' + e.message; }
+    finally { btn.disabled = false; }
+  });
+  // Suggestions: substring match on name, version and publisher of the current catalog (the datalist element
+  // is unreliable across browsers with a few hundred entries and only filled if the catalog was already loaded).
+  function attachSuggest(inputSel, boxSel, onPick) {
+    const input = $(inputSel), box = $(boxSel), sug = { items: [], hl: -1 };
+    function show() {
+      const q = input.value.trim().toLowerCase();
+      if (!state.models.length) { box.innerHTML = `<div class="none">${state.catalog ? 'No models in this region.' : 'Catalog still loading, or not loaded yet; open the Models tab first.'}</div>`; box.classList.remove('hide'); return; }
+      const words = q.split(/\s+/).filter(Boolean);
+      sug.items = state.models.filter(m => { const hay = `${m.name} ${m.version} ${m.publisher}`.toLowerCase(); return words.every(w => hay.includes(w)); })
+        .sort((a, b) => a.name.localeCompare(b.name) || b.version.localeCompare(a.version)).slice(0, 40);
+      sug.hl = -1;
+      box.innerHTML = sug.items.length ? sug.items.map((m, i) => `<div data-i="${i}"><b>${esc(m.name)}</b><span class="v">${esc(m.version)}</span><span class="p">${esc(m.publisher)}</span></div>`).join('') : '<div class="none">No model matches.</div>';
+      box.classList.remove('hide');
+    }
+    const hide = () => box.classList.add('hide');
+    const pick = i => { const m = sug.items[i]; if (!m) return; input.value = m.id; hide(); onPick(); };
+    input.addEventListener('input', show);
+    input.addEventListener('focus', show);
+    input.addEventListener('blur', () => setTimeout(hide, 150));
+    box.addEventListener('mousedown', e => { const d = e.target.closest('[data-i]'); if (d) { e.preventDefault(); pick(+d.dataset.i); } });
+    input.addEventListener('keydown', e => {
+      const open = !box.classList.contains('hide'), rows = $$(boxSel + ' [data-i]');
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { if (!open) show(); e.preventDefault(); sug.hl = Math.max(0, Math.min(rows.length - 1, sug.hl + (e.key === 'ArrowDown' ? 1 : -1))); rows.forEach((r, i) => r.classList.toggle('hl', i === sug.hl)); rows[sug.hl]?.scrollIntoView({ block: 'nearest' }); return; }
+      if (e.key === 'Escape') { hide(); return; }
+      if (e.key === 'Enter') { if (open && sug.hl >= 0) pick(sug.hl); else if (open && sug.items.length === 1) pick(0); else { hide(); onPick(); } }
+    });
+    return { show };
+  }
+  // Resolve what the user typed to a catalog entry: name:version, or a bare name (default version, or the only one).
+  function resolveModel(inputSel, metaSel, show) {
+    const input = $(inputSel); let v = input.value.trim();
+    let m = state.models.find(x => x.id.toLowerCase() === v.toLowerCase());
+    if (!m) {
+      const same = state.models.filter(x => x.name.toLowerCase() === v.toLowerCase());
+      m = same.find(x => x.isDefaultVersion) || (same.length === 1 ? same[0] : null);
+      if (!m) { $(metaSel).textContent = same.length ? `${v} has ${same.length} versions in this catalog; pick one from the list.` : 'Pick a model version from the list (start typing a name), or enter name:version.'; show(); return null; }
+      input.value = m.id;
+    }
+    return m;
+  }
+  const mapSuggest = attachSuggest('#mapModel', '#mapSuggest', () => $('#mapCheck').click());
+  const altSuggest = attachSuggest('#altModel', '#altSuggest', () => $('#altFind').click());
+
+  // ---------- alternatives ----------
+  const altState = { ref: null, caps: new Set() };
+  const ctxOf = m => { const v = parseInt(m.capabilityDetails.maxContextToken || m.capabilityDetails.maxContext || '', 10); return isNaN(v) ? null : v; };
+  const fmtTokens = n => n == null ? '—' : n >= 1e6 ? (n / 1e6).toFixed(n % 1e6 ? 1 : 0) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n);
+  const monthly = m => { const inM = +$('#altIn').value || 0, outM = +$('#altOut').value || 0; if (m.price.inputPer1M == null && m.price.outputPer1M == null) return null; return (m.price.inputPer1M || 0) * inM + (m.price.outputPer1M || 0) * outM; };
+  $('#altFind').addEventListener('click', () => {
+    const m = resolveModel('#altModel', '#altMeta', altSuggest.show); if (!m) return;
+    altState.ref = m; altState.caps = new Set(m.capabilities);
+    $('#altBody').classList.remove('hide'); renderAlt();
+  });
+  $('#altCaps').addEventListener('click', e => { const c = e.target.closest('[data-cap]'); if (!c) return; const cap = c.dataset.cap; if (altState.caps.has(cap)) altState.caps.delete(cap); else altState.caps.add(cap); renderAlt(); });
+  ['#altIn', '#altOut', '#altSamePub', '#altPriced', '#altGa'].forEach(sel => $(sel).addEventListener('input', () => altState.ref && renderAlt()));
+  $('#altGrid').addEventListener('click', e => { const tr = e.target.closest('tr[data-id]'); if (!tr) return; $('nav.tabs button[data-tab=models]').click(); showDetail(tr.dataset.id); });
+  function renderAlt() {
+    const ref = state.models.find(x => x.id === altState.ref.id);
+    if (!ref) { $('#altBody').classList.add('hide'); $('#altMeta').textContent = `${altState.ref.name} ${altState.ref.version} is not in the ${state.catalog.region} catalog. Pick a model from this region.`; return; }
+    altState.ref = ref;
+    const c = state.catalog.currency, refCost = monthly(ref);
+    $('#altCaps').innerHTML = ref.capabilities.map(cap => `<span class="chip ${altState.caps.has(cap) ? 'on' : ''}" data-cap="${esc(cap)}">${esc(cap)}</span>`).join('') || '<span class="muted">this model reports no capability flags</span>';
+    const samePub = $('#altSamePub').checked, pricedOnly = $('#altPriced').checked, gaOnly = $('#altGa').checked;
+    const rows = state.models.filter(m => m.name !== ref.name).filter(m => {
+      if (samePub && m.publisher !== ref.publisher) return false;
+      if (pricedOnly && m.price.inputPer1M == null && m.price.outputPer1M == null) return false;
+      if (gaOnly && !(m.lifecycleStatus === 'GenerallyAvailable' || m.lifecycleStatus === 'Stable')) return false;
+      if (m.daysUntilDeprecation != null && m.daysUntilDeprecation < 0) return false;
+      for (const cap of altState.caps) if (!m.capabilities.includes(cap)) return false;
+      return true;
+    });
+    // Other versions of the reference model itself are shown too, but after the real alternatives.
+    const otherVersions = state.models.filter(m => m.id !== ref.id && m.name === ref.name && (!pricedOnly || m.price.inputPer1M != null || m.price.outputPer1M != null));
+    const cost = m => monthly(m); const nz = v => v == null ? Infinity : v;
+    rows.sort((a, b) => nz(cost(a)) - nz(cost(b)) || a.name.localeCompare(b.name));
+    otherVersions.sort((a, b) => b.version.localeCompare(a.version));
+    const line = (m, isRef, tag) => {
+      const mc = cost(m); const extra = m.capabilities.filter(x => !altState.caps.has(x));
+      let delta = '<span class="muted">—</span>';
+      if (!isRef && mc != null && refCost != null && refCost > 0) { const d = (mc - refCost) / refCost * 100; delta = `<span class="${d < -0.5 ? 'cheaper' : d > 0.5 ? 'dearer' : ''}">${d > 0 ? '+' : ''}${d.toFixed(0)}%</span><div class="conf">${mc - refCost < 0 ? '−' : '+'}${fmtMoney(Math.abs(mc - refCost), c)}</div>`; }
+      else if (!isRef && mc != null && refCost != null && refCost === 0) delta = '<span class="dearer">reference is free</span>';
+      return `<tr class="model ${isRef ? 'ref' : ''}" data-id="${esc(m.id)}">
+        <td class="nm"><div class="name">${esc(m.name)}${tag ? ` <span class="tag">${tag}</span>` : ''}</div><div class="muted">${esc(m.publisher)} · ${esc(m.modality)}</div></td>
+        <td class="mono" style="white-space:nowrap">${esc(m.version)}${m.isDefaultVersion ? '<div><span class="tag">default</span></div>' : ''}</td>
+        <td><span class="status ${esc(m.lifecycleStatus)}">${esc(m.lifecycleStatus)}</span></td>
+        <td>${retiresCell(m)}</td>
+        <td class="num mono">${fmtTokens(ctxOf(m))}</td>
+        <td class="caps">${isRef ? '<span class="muted">reference</span>' : capChips(extra) || '<span class="muted">none beyond required</span>'}</td>
+        <td class="num">${fmtMoney(m.price.inputPer1M, c)}${m.price.confidence !== 'none' ? `<div class="conf">${esc(m.price.confidence)}</div>` : ''}</td>
+        <td class="num">${fmtMoney(m.price.outputPer1M, c)}</td>
+        <td class="num">${mc != null ? fmtMoney(mc, c) : '<span class="muted">no price</span>'}</td>
+        <td class="num">${isRef ? '<span class="muted">reference</span>' : delta}</td></tr>`;
+    };
+    $('#altGrid tbody').innerHTML = line(ref, true, 'your model') + rows.map(m => line(m, false, '')).join('') + otherVersions.map(m => line(m, false, 'other version')).join('');
+    $('#altEmpty').classList.toggle('hide', rows.length > 0);
+    const cheaper = rows.filter(m => cost(m) != null && refCost != null && cost(m) < refCost).length;
+    $('#altCount').textContent = `${rows.length} alternatives share ${altState.caps.size} required capabilit${altState.caps.size === 1 ? 'y' : 'ies'} in ${state.catalog.region}` + (refCost != null ? `; ${cheaper} of them cheaper than ${fmtMoney(refCost, c)} per month for ${$('#altIn').value}M in + ${$('#altOut').value}M out` : '; the reference has no matched price, so no delta') + ` · list prices in ${c}, Global Standard where matched. Click a row for its detail.`;
+    $('#altMeta').textContent = `Reference: ${ref.name} ${ref.version} (${ref.publisher}). Alternatives must report every selected capability; retired versions are excluded; other versions of ${ref.name} are listed last.`;
+  }
+
   // ---------- csv ----------
   function exportCsv() {
     const rows = filtered();
@@ -569,8 +835,9 @@
   $('#meterQ').addEventListener('input', renderMeters);
   $$('nav.tabs button').forEach(b => b.addEventListener('click', () => {
     $$('nav.tabs button').forEach(x => x.classList.toggle('active', x === b));
-    ['models', 'deployments', 'meters'].forEach(t => $('#tab-' + t).classList.toggle('hide', t !== b.dataset.tab));
-    $('main').classList.toggle('full', b.dataset.tab === 'deployments');
+    ['models', 'deployments', 'meters', 'map', 'alt'].forEach(t => $('#tab-' + t).classList.toggle('hide', t !== b.dataset.tab));
+    $('main').classList.toggle('full', b.dataset.tab === 'deployments' || b.dataset.tab === 'map' || b.dataset.tab === 'alt');
+    if (b.dataset.tab === 'map') loadMap();
     if (b.dataset.tab === 'deployments') loadDeployments(false);
     if (b.dataset.tab === 'meters') loadMeters(false);
   }));

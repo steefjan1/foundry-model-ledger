@@ -23,6 +23,12 @@ public sealed class UiFunctions
             .FirstOrDefault(n => n.EndsWith("wwwroot." + file.Replace('/', '.'), StringComparison.OrdinalIgnoreCase));
         if (resourceName is null) return new NotFoundResult();
 
+        // The UI is a single file that changes with every deploy: make browsers revalidate it instead of
+        // showing a heuristically cached copy. The land outline (world.js) is stable and may be cached for a day.
+        req.HttpContext.Response.Headers["Cache-Control"] = file.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+            ? "no-cache"
+            : "public, max-age=86400";
+
         var stream = Asm.GetManifestResourceStream(resourceName)!;
         return new FileStreamResult(stream, ContentTypeOf(file));
     }

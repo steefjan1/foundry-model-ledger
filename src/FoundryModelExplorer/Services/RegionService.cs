@@ -51,9 +51,15 @@ public sealed class RegionService
             if (!string.Equals(type, "Physical", StringComparison.OrdinalIgnoreCase)) continue;
             var name = loc.GetProperty("name").GetString() ?? "";
             var display = loc.TryGetProperty("displayName", out var d) ? d.GetString() ?? name : name;
-            string? geo = null;
-            if (loc.TryGetProperty("metadata", out var md2) && md2.TryGetProperty("geographyGroup", out var g)) geo = g.GetString();
-            regions.Add(new RegionInfo { Name = name, DisplayName = display, Geography = geo });
+            string? geo = null; double? lat = null, lon = null;
+            if (loc.TryGetProperty("metadata", out var md2))
+            {
+                if (md2.TryGetProperty("geographyGroup", out var g)) geo = g.GetString();
+                // ARM returns latitude/longitude as strings.
+                if (md2.TryGetProperty("latitude", out var la) && double.TryParse(la.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lav)) lat = lav;
+                if (md2.TryGetProperty("longitude", out var lo) && double.TryParse(lo.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lov)) lon = lov;
+            }
+            regions.Add(new RegionInfo { Name = name, DisplayName = display, Geography = geo, Latitude = lat, Longitude = lon });
         }
 
         // 2. Flag the regions where the CognitiveServices "accounts" resource type is offered.

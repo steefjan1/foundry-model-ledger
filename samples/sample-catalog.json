@@ -6320,44 +6320,324 @@
  ],
  "regions": [
   {
-   "name": "swedencentral",
-   "displayName": "Sweden Central",
-   "geography": "Europe"
-  },
-  {
    "name": "westeurope",
    "displayName": "West Europe",
-   "geography": "Europe"
+   "geography": "Europe",
+   "latitude": 52.37,
+   "longitude": 4.89,
+   "hostsFoundry": true
   },
   {
    "name": "northeurope",
    "displayName": "North Europe",
-   "geography": "Europe"
+   "geography": "Europe",
+   "latitude": 53.35,
+   "longitude": -6.26,
+   "hostsFoundry": true
+  },
+  {
+   "name": "swedencentral",
+   "displayName": "Sweden Central",
+   "geography": "Europe",
+   "latitude": 60.67,
+   "longitude": 17.14,
+   "hostsFoundry": true
   },
   {
    "name": "francecentral",
    "displayName": "France Central",
-   "geography": "Europe"
+   "geography": "Europe",
+   "latitude": 46.36,
+   "longitude": 2.37,
+   "hostsFoundry": true
+  },
+  {
+   "name": "francesouth",
+   "displayName": "France South",
+   "geography": "Europe",
+   "latitude": 43.83,
+   "longitude": 5.43,
+   "hostsFoundry": false
+  },
+  {
+   "name": "germanywestcentral",
+   "displayName": "Germany West Central",
+   "geography": "Europe",
+   "latitude": 50.11,
+   "longitude": 8.68,
+   "hostsFoundry": true
+  },
+  {
+   "name": "germanynorth",
+   "displayName": "Germany North",
+   "geography": "Europe",
+   "latitude": 53.07,
+   "longitude": 8.81,
+   "hostsFoundry": false
+  },
+  {
+   "name": "norwayeast",
+   "displayName": "Norway East",
+   "geography": "Europe",
+   "latitude": 59.91,
+   "longitude": 10.75,
+   "hostsFoundry": true
+  },
+  {
+   "name": "norwaywest",
+   "displayName": "Norway West",
+   "geography": "Europe",
+   "latitude": 58.97,
+   "longitude": 5.73,
+   "hostsFoundry": false
+  },
+  {
+   "name": "switzerlandnorth",
+   "displayName": "Switzerland North",
+   "geography": "Europe",
+   "latitude": 47.45,
+   "longitude": 8.56,
+   "hostsFoundry": true
+  },
+  {
+   "name": "switzerlandwest",
+   "displayName": "Switzerland West",
+   "geography": "Europe",
+   "latitude": 46.2,
+   "longitude": 6.14,
+   "hostsFoundry": false
+  },
+  {
+   "name": "uksouth",
+   "displayName": "UK South",
+   "geography": "Europe",
+   "latitude": 50.94,
+   "longitude": -0.8,
+   "hostsFoundry": true
+  },
+  {
+   "name": "ukwest",
+   "displayName": "UK West",
+   "geography": "Europe",
+   "latitude": 53.43,
+   "longitude": -3.08,
+   "hostsFoundry": false
+  },
+  {
+   "name": "polandcentral",
+   "displayName": "Poland Central",
+   "geography": "Europe",
+   "latitude": 52.23,
+   "longitude": 21.01,
+   "hostsFoundry": true
+  },
+  {
+   "name": "italynorth",
+   "displayName": "Italy North",
+   "geography": "Europe",
+   "latitude": 45.46,
+   "longitude": 9.19,
+   "hostsFoundry": true
+  },
+  {
+   "name": "spaincentral",
+   "displayName": "Spain Central",
+   "geography": "Europe",
+   "latitude": 40.42,
+   "longitude": -3.7,
+   "hostsFoundry": true
   },
   {
    "name": "eastus",
    "displayName": "East US",
-   "geography": "US"
+   "geography": "US",
+   "latitude": 37.37,
+   "longitude": -79.82,
+   "hostsFoundry": true
   },
   {
    "name": "eastus2",
    "displayName": "East US 2",
-   "geography": "US"
+   "geography": "US",
+   "latitude": 36.68,
+   "longitude": -78.39,
+   "hostsFoundry": true
   },
   {
    "name": "centralus",
    "displayName": "Central US",
-   "geography": "US"
+   "geography": "US",
+   "latitude": 41.59,
+   "longitude": -93.62,
+   "hostsFoundry": true
+  },
+  {
+   "name": "westus",
+   "displayName": "West US",
+   "geography": "US",
+   "latitude": 37.78,
+   "longitude": -122.42,
+   "hostsFoundry": true
+  },
+  {
+   "name": "westus2",
+   "displayName": "West US 2",
+   "geography": "US",
+   "latitude": 47.23,
+   "longitude": -119.85,
+   "hostsFoundry": false
+  },
+  {
+   "name": "westus3",
+   "displayName": "West US 3",
+   "geography": "US",
+   "latitude": 33.45,
+   "longitude": -112.07,
+   "hostsFoundry": true
+  },
+  {
+   "name": "southcentralus",
+   "displayName": "South Central US",
+   "geography": "US",
+   "latitude": 29.42,
+   "longitude": -98.49,
+   "hostsFoundry": true
+  },
+  {
+   "name": "northcentralus",
+   "displayName": "North Central US",
+   "geography": "US",
+   "latitude": 41.88,
+   "longitude": -87.63,
+   "hostsFoundry": true
+  },
+  {
+   "name": "canadacentral",
+   "displayName": "Canada Central",
+   "geography": "Canada",
+   "latitude": 43.65,
+   "longitude": -79.38,
+   "hostsFoundry": true
+  },
+  {
+   "name": "canadaeast",
+   "displayName": "Canada East",
+   "geography": "Canada",
+   "latitude": 46.82,
+   "longitude": -71.21,
+   "hostsFoundry": true
+  },
+  {
+   "name": "brazilsouth",
+   "displayName": "Brazil South",
+   "geography": "South America",
+   "latitude": -23.55,
+   "longitude": -46.63,
+   "hostsFoundry": true
+  },
+  {
+   "name": "chilecentral",
+   "displayName": "Chile Central",
+   "geography": "South America",
+   "latitude": -33.45,
+   "longitude": -70.67,
+   "hostsFoundry": false
+  },
+  {
+   "name": "mexicocentral",
+   "displayName": "Mexico Central",
+   "geography": "Mexico",
+   "latitude": 20.59,
+   "longitude": -100.39,
+   "hostsFoundry": false
   },
   {
    "name": "japaneast",
    "displayName": "Japan East",
-   "geography": "Asia Pacific"
+   "geography": "Asia Pacific",
+   "latitude": 35.68,
+   "longitude": 139.77,
+   "hostsFoundry": true
+  },
+  {
+   "name": "koreacentral",
+   "displayName": "Korea Central",
+   "geography": "Asia Pacific",
+   "latitude": 37.57,
+   "longitude": 126.98,
+   "hostsFoundry": true
+  },
+  {
+   "name": "eastasia",
+   "displayName": "East Asia",
+   "geography": "Asia Pacific",
+   "latitude": 22.27,
+   "longitude": 114.19,
+   "hostsFoundry": true
+  },
+  {
+   "name": "southeastasia",
+   "displayName": "Southeast Asia",
+   "geography": "Asia Pacific",
+   "latitude": 1.28,
+   "longitude": 103.85,
+   "hostsFoundry": true
+  },
+  {
+   "name": "australiaeast",
+   "displayName": "Australia East",
+   "geography": "Asia Pacific",
+   "latitude": -33.87,
+   "longitude": 151.21,
+   "hostsFoundry": true
+  },
+  {
+   "name": "centralindia",
+   "displayName": "Central India",
+   "geography": "Asia Pacific",
+   "latitude": 18.59,
+   "longitude": 73.92,
+   "hostsFoundry": true
+  },
+  {
+   "name": "southindia",
+   "displayName": "South India",
+   "geography": "Asia Pacific",
+   "latitude": 12.98,
+   "longitude": 80.16,
+   "hostsFoundry": true
+  },
+  {
+   "name": "southafricanorth",
+   "displayName": "South Africa North",
+   "geography": "Africa",
+   "latitude": -25.73,
+   "longitude": 28.22,
+   "hostsFoundry": true
+  },
+  {
+   "name": "uaenorth",
+   "displayName": "UAE North",
+   "geography": "Middle East",
+   "latitude": 25.27,
+   "longitude": 55.3,
+   "hostsFoundry": true
+  },
+  {
+   "name": "israelcentral",
+   "displayName": "Israel Central",
+   "geography": "Middle East",
+   "latitude": 31.2,
+   "longitude": 34.85,
+   "hostsFoundry": false
+  },
+  {
+   "name": "qatarcentral",
+   "displayName": "Qatar Central",
+   "geography": "Middle East",
+   "latitude": 25.55,
+   "longitude": 51.44,
+   "hostsFoundry": true
   }
  ],
  "deployments": [

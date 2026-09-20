@@ -24,7 +24,15 @@ The answers exist in Azure, but in three places that were never designed to be r
 
 **My deployments tab.** All model deployments in every Cognitive Services / Foundry account of the subscription, joined to their region's catalog, sorted by soonest retirement, with the `versionUpgradeOption` so you can see whether Azure will auto-upgrade them.
 
+**Alternatives tab.** Pick the model you use or consider; every other model in the region that reports the same capability flags (chat completion, tool calling, JSON schema output, image input, ...) is listed with its list price, what your monthly workload (input and output tokens) would cost on it, and the delta against your model. Drop a capability chip you do not need to widen the list; restrict to the same publisher or GA models to narrow it. Retired versions are excluded and other versions of the same model are listed last.
+
+![Alternatives tab](docs/alternatives.png)
+
 **Price meters tab.** The raw Retail Prices rows for the region, searchable, so you can check the matcher's evidence.
+
+**Availability map tab.** Every Azure region on a world map (coordinates from the subscription's location metadata, land outline from Natural Earth 1:110m). Enter a model version and the regions that carry it light up; the rest show as absent or as not hosting AI services. Zoom presets for Europe, North America, Asia Pacific, Middle East & Africa and South America keep the labels readable where regions cluster.
+
+![Availability map](docs/map.png)
 
 ![Detail panel with SKUs, matched meters and region availability](docs/availability.png)
 
@@ -62,6 +70,7 @@ src/FoundryModelExplorer/          .NET 8 isolated Azure Functions
   Services/DeploymentService.cs    accounts + deployments via ARM, catalog join
   Services/RegionService.cs        regions that host Cognitive Services accounts
   wwwroot/index.html               the UI (single file, no build step)
+  wwwroot/world.js                 land outline for the availability map (Natural Earth, public domain)
 samples/sample-catalog.json        offline snapshot used when CATALOG_SOURCE=sample
 scripts/run-local.ps1              local run (Windows PowerShell 5.1 compatible)
 scripts/export-snapshot.ps1        export a real snapshot of a region to samples/

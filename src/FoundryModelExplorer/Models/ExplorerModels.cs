@@ -123,6 +123,9 @@ public sealed class RegionInfo
     public string? Geography { get; set; }
     /// <summary>True when Microsoft.CognitiveServices/accounts is offered in this region, i.e. a model catalog exists.</summary>
     public bool HostsFoundry { get; set; }
+    /// <summary>From the subscription locations metadata; used to plot the region on the availability map.</summary>
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 }
 
 public sealed class DeploymentsResponse

@@ -151,16 +151,21 @@ meter("Azure Llama Models", "Llama 4 Maverick 17B Inp regnl", 0.000303, "1K", "L
 meter("Azure Phi Models", "Phi 4 Inp glbl", 0.000125, "1K", "Phi 4 Inp glbl Tokens"); meter("Azure Phi Models", "Phi 4 Outp glbl", 0.0005, "1K", "Phi 4 Outp glbl Tokens")
 meter("Cohere Models", "Command A Plus Outp DZ", 3.52, "1M", "Command A Plus Outp DZ 1M Tokens")
 
-regions = [
-    {"name": "swedencentral", "displayName": "Sweden Central", "geography": "Europe"},
-    {"name": "westeurope", "displayName": "West Europe", "geography": "Europe"},
-    {"name": "northeurope", "displayName": "North Europe", "geography": "Europe"},
-    {"name": "francecentral", "displayName": "France Central", "geography": "Europe"},
-    {"name": "eastus", "displayName": "East US", "geography": "US"},
-    {"name": "eastus2", "displayName": "East US 2", "geography": "US"},
-    {"name": "centralus", "displayName": "Central US", "geography": "US"},
-    {"name": "japaneast", "displayName": "Japan East", "geography": "Asia Pacific"},
+# Real Azure region coordinates (approximate) so the availability map has something to show offline.
+_R = [
+ ("westeurope","West Europe","Europe",52.37,4.89,True),("northeurope","North Europe","Europe",53.35,-6.26,True),("swedencentral","Sweden Central","Europe",60.67,17.14,True),
+ ("francecentral","France Central","Europe",46.36,2.37,True),("francesouth","France South","Europe",43.83,5.43,False),("germanywestcentral","Germany West Central","Europe",50.11,8.68,True),
+ ("germanynorth","Germany North","Europe",53.07,8.81,False),("norwayeast","Norway East","Europe",59.91,10.75,True),("norwaywest","Norway West","Europe",58.97,5.73,False),
+ ("switzerlandnorth","Switzerland North","Europe",47.45,8.56,True),("switzerlandwest","Switzerland West","Europe",46.20,6.14,False),("uksouth","UK South","Europe",50.94,-0.80,True),
+ ("ukwest","UK West","Europe",53.43,-3.08,False),("polandcentral","Poland Central","Europe",52.23,21.01,True),("italynorth","Italy North","Europe",45.46,9.19,True),("spaincentral","Spain Central","Europe",40.42,-3.70,True),
+ ("eastus","East US","US",37.37,-79.82,True),("eastus2","East US 2","US",36.68,-78.39,True),("centralus","Central US","US",41.59,-93.62,True),("westus","West US","US",37.78,-122.42,True),
+ ("westus2","West US 2","US",47.23,-119.85,False),("westus3","West US 3","US",33.45,-112.07,True),("southcentralus","South Central US","US",29.42,-98.49,True),("northcentralus","North Central US","US",41.88,-87.63,True),
+ ("canadacentral","Canada Central","Canada",43.65,-79.38,True),("canadaeast","Canada East","Canada",46.82,-71.21,True),("brazilsouth","Brazil South","South America",-23.55,-46.63,True),("chilecentral","Chile Central","South America",-33.45,-70.67,False),
+ ("mexicocentral","Mexico Central","Mexico",20.59,-100.39,False),("japaneast","Japan East","Asia Pacific",35.68,139.77,True),("koreacentral","Korea Central","Asia Pacific",37.57,126.98,True),("eastasia","East Asia","Asia Pacific",22.27,114.19,True),
+ ("southeastasia","Southeast Asia","Asia Pacific",1.28,103.85,True),("australiaeast","Australia East","Asia Pacific",-33.87,151.21,True),("centralindia","Central India","Asia Pacific",18.59,73.92,True),("southindia","South India","Asia Pacific",12.98,80.16,True),
+ ("southafricanorth","South Africa North","Africa",-25.73,28.22,True),("uaenorth","UAE North","Middle East",25.27,55.30,True),("israelcentral","Israel Central","Middle East",31.20,34.85,False),("qatarcentral","Qatar Central","Middle East",25.55,51.44,True),
 ]
+regions = [{"name": n, "displayName": d, "geography": g, "latitude": la, "longitude": lo, "hostsFoundry": h} for n, d, g, la, lo, h in _R]
 
 deployments = [
     {"id": "/subscriptions/0000/resourceGroups/rg-rag-pipeline/providers/Microsoft.CognitiveServices/accounts/aoai-rag-swc/deployments/chat", "name": "chat", "accountName": "aoai-rag-swc", "resourceGroup": "rg-rag-pipeline", "region": "swedencentral", "modelName": "gpt-5.4-mini", "modelVersion": "2026-03-17", "modelFormat": "OpenAI", "skuName": "GlobalStandard", "capacity": 50, "provisioningState": "Succeeded", "versionUpgradeOption": "OnceNewDefaultVersionAvailable"},
