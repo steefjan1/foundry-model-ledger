@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Azure Foundry Model Explorer</title>
+<title>Foundry Model Ledger</title>
 <style>
   :root {
     --ink: #1f2933; --ink-2: #52606d; --ink-3: #7b8794; --line: #e4e7eb; --bg: #f5f7fa; --panel: #fff;
@@ -61,6 +61,10 @@
   .bar i { display: block; height: 100%; background: var(--ok); }
   .bar.warning i { background: var(--warn); } .bar.serious i { background: var(--serious); } .bar.deprecated i { background: var(--bad); }
   .conf { font-size: 11px; color: var(--ink-3); }
+  .geo { margin: 8px 0 2px; font-size: 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .chip.avail { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); cursor: default; }
+  .chip.absent { color: var(--ink-3); cursor: default; }
+  .chip.err { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); cursor: default; }
   #detail { margin-top: 20px; display: none; }
   #detail.open { display: block; }
   #detail h3 { margin: 0; font-size: 20px; } #detail .close { float: right; }
@@ -81,8 +85,8 @@
 </head>
 <body>
 <header>
-  <h1>Azure Foundry Model Explorer</h1>
-  <div class="sub">Which models a region carries, what they can do, what they cost per 1M tokens, and when they retire · <span>ARM model catalog → Azure Retail Prices → Resource Graph</span></div>
+  <h1>Foundry Model Ledger</h1>
+  <div class="sub">Which models a region carries, what they can do, what they cost per 1M tokens, and when they retire · <span>ARM model catalog → Azure Retail Prices → ARM deployments</span></div>
 </header>
 
 <nav class="tabs">
@@ -211,6 +215,11 @@
         <div class="section"><h4>Capabilities as reported by ARM</h4><dl class="kv" id="dCaps"></dl></div>
         <div class="section"><h4>Deployment types (SKUs) and capacity</h4><div style="overflow:auto"><table id="dSkus"><thead><tr><th>SKU</th><th>Usage name</th><th class="num">Min</th><th class="num">Default</th><th class="num">Max</th><th class="num">Step</th><th>SKU retirement</th></tr></thead><tbody></tbody></table></div></div>
         <div class="section"><h4>Retail price meters matched to this model <span class="conf" id="dConf"></span></h4><div style="overflow:auto"><table id="dPrices"><thead><tr><th>Meter</th><th>Product</th><th>Direction</th><th>Deployment</th><th>Tier</th><th>Context</th><th class="num">Retail</th><th>Unit</th><th class="num">Per 1M</th></tr></thead><tbody></tbody></table></div><div class="muted" id="dPriceNote"></div></div>
+        <div class="section"><h4>Availability in other regions <span class="conf" id="dAvailMeta"></span></h4>
+          <button class="btn" id="checkRegions">Check all regions</button>
+          <div class="muted" style="margin:6px 0 8px">One catalog read per region that hosts Azure AI services; results are cached for an hour.</div>
+          <div id="dAvail"></div>
+        </div>
         <div class="section"><h4>Raw JSON</h4><pre id="dJson"></pre></div>
       </div>
     </div>
@@ -223,14 +232,14 @@
           <span class="grow"></span>
           <button class="btn" id="reloadDeps">Reload</button>
         </div>
-        <div class="muted" style="margin-bottom:10px">Every Microsoft.CognitiveServices/accounts/deployments resource, joined to the catalog of its own region. Sorted by soonest retirement.</div>
+        <div class="muted" style="margin-bottom:10px">Every model deployment in every Cognitive Services / Foundry account of the subscription, joined to the catalog of its own region. Sorted by soonest retirement.</div>
         <div style="overflow:auto">
           <table id="depGrid">
             <thead><tr><th>Deployment</th><th>Account</th><th>Region</th><th>Model</th><th>Version</th><th>SKU</th><th class="num">Capacity</th><th>Upgrade option</th><th>Lifecycle</th><th>Retires</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
-        <div class="empty hide" id="emptyDeps">No deployments found (or Resource Graph access is missing).</div>
+        <div class="empty hide" id="emptyDeps">No model deployments found.</div>
       </div>
     </div>
 
@@ -466,6 +475,7 @@
     $('#dPrices tbody').innerHTML = m.price.lines.map(l => `<tr><td class="mono">${esc(l.meterName)}</td><td class="muted">${esc(l.productName)}</td><td>${esc(l.direction)}</td><td>${esc(l.deployment)}</td><td>${esc(l.tier)}</td><td>${esc(l.context)}</td><td class="num">${l.retailPrice}</td><td class="mono">${esc(l.unitOfMeasure)}</td><td class="num">${l.pricePer1M != null ? fmtMoney(l.pricePer1M, c) : '—'}</td></tr>`).join('') || '<tr><td colspan="9" class="muted">No retail meter could be matched to this model name in this region.</td></tr>';
     $('#dPriceNote').textContent = m.price.confidence === 'exact' ? 'exact: a meter carries a date token that matches this version.' : m.price.confidence === 'name' ? 'name: matched on the model name only; the meter may apply to several versions.' : m.price.confidence === 'loose' ? 'loose: matched on the first tokens of a long catalog name; verify against the pricing page.' : '';
     $('#dJson').textContent = JSON.stringify(m, null, 2);
+    $('#dAvail').innerHTML = ''; $('#dAvailMeta').textContent = ''; $('#checkRegions').disabled = false;
     $('#detail').classList.add('open');
     $('#detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -478,7 +488,8 @@
       const d = await api('/api/deployments');
       state.deployments = d;
       for (const w of d.warnings || []) notice('warn', esc(w));
-      $('#depCount').textContent = `${d.deployments.length} deployments`;
+      $('#depCount').textContent = `${d.deployments.length} deployments in ${d.accountCount ?? '?'} accounts`;
+      $('#emptyDeps').textContent = d.accountCount ? `The subscription has ${d.accountCount} Cognitive Services / Foundry accounts but none of them has a model deployment.` : 'No Cognitive Services / Foundry accounts were found in this subscription (or the identity lacks Reader on it).';
       $('#emptyDeps').classList.toggle('hide', d.deployments.length > 0);
       $('#depGrid tbody').innerHTML = d.deployments.map(x => `
         <tr><td class="name">${esc(x.name)}</td><td>${esc(x.accountName)}<div class="muted">${esc(x.resourceGroup)}</div></td><td class="mono">${esc(x.region)}</td>
@@ -540,6 +551,19 @@
   });
   $('#grid thead').addEventListener('click', e => { const th = e.target.closest('th[data-k]'); if (!th) return; if (state.sortKey === th.dataset.k) state.sortAsc = !state.sortAsc; else { state.sortKey = th.dataset.k; state.sortAsc = true; } render(); });
   $('#grid tbody').addEventListener('click', e => { const tr = e.target.closest('tr[data-id]'); if (tr) showDetail(tr.dataset.id); });
+  $('#checkRegions').addEventListener('click', async () => {
+    const m = state.models.find(x => x.id === state.selected); if (!m) return;
+    const btn = $('#checkRegions'); btn.disabled = true; $('#dAvailMeta').textContent = '· checking…';
+    try {
+      const a = await api(`/api/availability?name=${encodeURIComponent(m.name)}&version=${encodeURIComponent(m.version)}`);
+      $('#dAvailMeta').textContent = `· available in ${a.availableIn} of ${a.regionsChecked} regions`;
+      const groups = {};
+      for (const r of a.regions) (groups[r.geography || 'Other'] ||= []).push(r);
+      $('#dAvail').innerHTML = Object.entries(groups).map(([g, rs]) => `<div class="geo">${esc(g)}</div><div class="chips">${rs.map(r =>
+        `<span class="chip ${r.status === 'available' ? 'avail' : r.status === 'absent' ? 'absent' : 'err'}" title="${esc(r.name)} · ${esc(r.status)}">${r.status === 'available' ? '● ' : r.status === 'absent' ? '○ ' : '▲ '}${esc(r.displayName)}</span>`).join('')}</div>`).join('');
+    } catch (e) { $('#dAvailMeta').textContent = ''; $('#dAvail').innerHTML = `<div class="notice err">${esc(e.message)}</div>`; }
+    finally { btn.disabled = false; }
+  });
   $('#closeDetail').addEventListener('click', () => { $('#detail').classList.remove('open'); state.selected = null; render(); });
   $('#reloadDeps').addEventListener('click', () => loadDeployments(true));
   $('#meterQ').addEventListener('input', renderMeters);

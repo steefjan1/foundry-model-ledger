@@ -73,23 +73,23 @@ foreach ($display in $accountLocations) {
 $regions = $regions | Sort-Object geography, displayName
 Write-Host "  $($regions.Count) regions"
 
-# 4. Deployments (Resource Graph)
+# 4. Deployments (ARM: every account, then its deployments; Resource Graph does not index deployments)
 Write-Host "Deployments..." -ForegroundColor Cyan
-$query = "resources | where type =~ 'microsoft.cognitiveservices/accounts/deployments' | extend accountName = tostring(split(id, '/')[8]) | project id, name, location, resourceGroup, accountName, modelName = tostring(properties.model.name), modelVersion = tostring(properties.model.version), modelFormat = tostring(properties.model.format), skuName = tostring(sku.name), capacity = toint(sku.capacity), provisioningState = tostring(properties.provisioningState), versionUpgradeOption = tostring(properties.versionUpgradeOption)"
-$graph = az graph query -q $query --subscriptions $sub -o json 2>$null | ConvertFrom-Json
+$accounts = az cognitiveservices account list -o json | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw "az cognitiveservices account list failed" }
 $deployments = @()
-if ($LASTEXITCODE -eq 0 -and $graph) {
-    foreach ($d in $graph.data) {
+foreach ($a in $accounts) {
+    $deps = az cognitiveservices account deployment list -g $a.resourceGroup -n $a.name -o json 2>$null | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) { Write-Warning "Could not list deployments of $($a.name)"; continue }
+    foreach ($d in $deps) {
         $deployments += [pscustomobject]@{
-            id = $d.id; name = $d.name; accountName = $d.accountName; resourceGroup = $d.resourceGroup
-            region = $d.location; modelName = $d.modelName; modelVersion = $d.modelVersion; modelFormat = $d.modelFormat
-            skuName = $d.skuName; capacity = $d.capacity; provisioningState = $d.provisioningState; versionUpgradeOption = $d.versionUpgradeOption
+            id = $d.id; name = $d.name; accountName = $a.name; resourceGroup = $a.resourceGroup
+            region = $a.location.ToLower(); modelName = $d.properties.model.name; modelVersion = $d.properties.model.version; modelFormat = $d.properties.model.format
+            skuName = $d.sku.name; capacity = $d.sku.capacity; provisioningState = $d.properties.provisioningState; versionUpgradeOption = $d.properties.versionUpgradeOption
         }
     }
-    Write-Host "  $($deployments.Count) deployments"
-} else {
-    Write-Warning "Resource Graph query skipped (install with: az extension add --name resource-graph)."
 }
+Write-Host "  $($deployments.Count) deployments in $($accounts.Count) accounts"
 
 $snapshot = [pscustomobject]@{
     _note = "Exported by scripts/export-snapshot.ps1 on $(Get-Date -Format s) for $Region ($Currency)."

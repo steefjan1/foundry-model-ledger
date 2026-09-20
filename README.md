@@ -1,6 +1,10 @@
-# Azure Foundry Model Explorer
+# Foundry Model Ledger
 
-A small console for the question every team asks before they pick a model: **what does this region actually carry, what can each model do, what does it cost per million tokens, and when does it retire?**
+A small console for the question every team asks before they pick a model: **what does this region actually carry, what can each model do, what does it cost per million tokens, and when does it retire?** And the question every platform team asks afterwards: **which of our own deployments are affected?**
+
+If you only need region availability, Microsoft's [Foundry Model Explorer](https://foundry-models.azurewebsites.net/explorer) already shows every model with the regions that carry it, from a periodic snapshot. The Ledger reads your subscription live and adds the two things that tool does not have: list prices per 1M tokens in your currency, matched from the Azure Retail Prices API, and a join to your own deployments sorted by retirement date. Its detail panel also fans out to every region to show where else a model is available.
+
+> The C# project and namespace are still called `FoundryModelExplorer`; only the product name changed.
 
 The answers exist in Azure, but in three places that were never designed to be read together:
 
@@ -8,7 +12,7 @@ The answers exist in Azure, but in three places that were never designed to be r
 |---|---|---|
 | Which models and versions exist in a region, with capabilities, lifecycle status, SKUs and retirement dates | ARM: `Microsoft.CognitiveServices/locations/{region}/models` | `GET …/models?api-version=2024-10-01`, paged, with the caller's identity |
 | What they cost | [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices), `serviceName eq 'Foundry Models'` | Public, no auth, paged; meters are matched to catalog models by a tokenising matcher (see below) |
-| Which of *my* deployments run on a retiring version | Azure Resource Graph, `microsoft.cognitiveservices/accounts/deployments` | One KQL query, joined to the catalog of each deployment's region |
+| Which of *my* deployments run on a retiring version | ARM: the subscription's `Microsoft.CognitiveServices/accounts` and each account's `/deployments` | Listed per account (Resource Graph does not index deployments), joined to the catalog of each deployment's region |
 
 ![Models tab](docs/models.png)
 
@@ -16,9 +20,9 @@ The answers exist in Azure, but in three places that were never designed to be r
 
 **Models tab.** Region picker (every physical Azure region, with a marker on those without AI services), a price-currency switch (any ISO 4217 code the Retail Prices API knows: USD, EUR, GBP, SEK, …), stat tiles, and a sortable table: model, version (default version flagged), lifecycle status, capability chips, retirement date with a days-left bar, input/output price per 1M tokens with a confidence label, and deployment types. Filters on publisher, lifecycle, modality, retirement window, required capabilities and deployment type. CSV export of the filtered view.
 
-**Detail panel.** Click a row: every capability ARM reports (context window, max output tokens, tool calling, …), every SKU with min/default/max capacity, every retail meter that was matched to the model with its direction, deployment type, tier and normalised per-1M price, and the raw JSON.
+**Detail panel.** Click a row: every capability ARM reports (context window, max output tokens, tool calling, …), every SKU with min/default/max capacity, every retail meter that was matched to the model with its direction, deployment type, tier and normalised per-1M price, a **Check all regions** button that lists every Azure region carrying that model/version (one lightweight catalog call per region, cached), and the raw JSON.
 
-**My deployments tab.** All model deployments in the subscription, joined to their region's catalog, sorted by soonest retirement, with the `versionUpgradeOption` so you can see whether Azure will auto-upgrade them.
+**My deployments tab.** All model deployments in every Cognitive Services / Foundry account of the subscription, joined to their region's catalog, sorted by soonest retirement, with the `versionUpgradeOption` so you can see whether Azure will auto-upgrade them.
 
 **Price meters tab.** The raw Retail Prices rows for the region, searchable, so you can check the matcher's evidence.
 
@@ -45,13 +49,13 @@ infra/                             Bicep: Flex Consumption Function App, storage
                                    user-assigned identity, Reader on the subscription
 src/FoundryModelExplorer/          .NET 8 isolated Azure Functions
   Functions/ApiFunctions.cs        GET api/regions, api/models, api/models/{name}/{version},
-                                   api/meters, api/deployments, api/health
+                                   api/availability, api/meters, api/deployments, api/health
   Functions/UiFunctions.cs         serves wwwroot/index.html at the root (routePrefix is "")
   Services/ArmGateway.cs           bearer token + paged GET/POST against management.azure.com
   Services/CatalogService.cs       catalog read + enrichment (deprecation level, prices, modality)
   Services/PriceMatcher.cs         the meter matcher described above
   Services/PricingService.cs       Retail Prices client with per-region cache
-  Services/DeploymentService.cs    Resource Graph query + catalog join
+  Services/DeploymentService.cs    accounts + deployments via ARM, catalog join
   Services/RegionService.cs        regions that host Cognitive Services accounts
   wwwroot/index.html               the UI (single file, no build step)
 samples/sample-catalog.json        offline snapshot used when CATALOG_SOURCE=sample
@@ -66,7 +70,7 @@ tools/mock-server.mjs              runs the UI on Node against the sample, no .N
 ### Prerequisites
 
 - .NET 8 SDK, Azure Functions Core Tools v4, Azure CLI (`az login`)
-- The signed-in identity needs **Reader** on the subscription (the catalog endpoint, the provider manifest and Resource Graph all honour RBAC)
+- The signed-in identity needs **Reader** on the subscription (the catalog endpoint, the provider manifest, the account list and the deployment lists all honour RBAC)
 - For `azd up`: Azure Developer CLI
 
 ### Locally against Azure

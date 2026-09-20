@@ -41,6 +41,7 @@ builder.Services.AddSingleton<RegionService>();
 builder.Services.AddSingleton<PricingService>();
 builder.Services.AddSingleton<CatalogService>();
 builder.Services.AddSingleton<DeploymentService>();
+builder.Services.AddSingleton<AvailabilityService>();
 builder.Services.AddSingleton<SampleData>();
 
 builder.Build().Run();

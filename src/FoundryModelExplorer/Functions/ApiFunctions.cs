@@ -14,6 +14,7 @@ namespace FoundryModelExplorer.Functions;
 ///   GET api/regions
 ///   GET api/models?region=swedencentral
 ///   GET api/models/{name}/{version}?region=swedencentral
+///   GET api/availability?name=gpt-5.6-sol&amp;version=2026-07-09
 ///   GET api/meters?region=swedencentral&amp;q=gpt
 ///   GET api/deployments
 /// </summary>
@@ -23,13 +24,15 @@ public sealed class ApiFunctions
     private readonly CatalogService _catalog;
     private readonly PricingService _pricing;
     private readonly DeploymentService _deployments;
+    private readonly AvailabilityService _availability;
     private readonly ExplorerOptions _options;
     private readonly IMemoryCache _cache;
     private readonly ILogger<ApiFunctions> _log;
 
-    public ApiFunctions(RegionService regions, CatalogService catalog, PricingService pricing, DeploymentService deployments, ExplorerOptions options, IMemoryCache cache, ILogger<ApiFunctions> log)
+    public ApiFunctions(RegionService regions, CatalogService catalog, PricingService pricing, DeploymentService deployments, AvailabilityService availability, ExplorerOptions options, IMemoryCache cache, ILogger<ApiFunctions> log)
     {
         _cache = cache;
+        _availability = availability;
         _regions = regions;
         _catalog = catalog;
         _pricing = pricing;
@@ -77,6 +80,17 @@ public sealed class ApiFunctions
         {
             var model = await _catalog.GetModelAsync(RegionOf(req), CurrencyOf(req), name, version, ct);
             return model is null ? new NotFoundObjectResult(new { error = $"{name} {version} not found in {RegionOf(req)}" }) : new OkObjectResult(model);
+        });
+
+    /// <summary>Every region that carries this exact model version.</summary>
+    [Function("Availability")]
+    public async Task<IActionResult> Availability([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/availability")] HttpRequest req, CancellationToken ct)
+        => await Guard(async () =>
+        {
+            var name = (req.Query["name"].FirstOrDefault() ?? "").Trim();
+            var version = (req.Query["version"].FirstOrDefault() ?? "").Trim();
+            if (name.Length == 0 || version.Length == 0) return new BadRequestObjectResult(new { error = "name and version are required" });
+            return new OkObjectResult(await _availability.GetAsync(name, version, ct));
         });
 
     [Function("Meters")]

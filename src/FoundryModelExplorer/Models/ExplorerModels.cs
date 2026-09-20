@@ -131,6 +131,7 @@ public sealed class DeploymentsResponse
     public string Source { get; set; } = "azure";
     public List<DeploymentInfo> Deployments { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
+    public int AccountCount { get; set; }
 }
 
 public sealed class DeploymentInfo
@@ -162,4 +163,23 @@ public sealed class MetersResponse
     public string Currency { get; set; } = "USD";
     public int Total { get; set; }
     public List<RetailPrice> Items { get; set; } = new();
+}
+
+public sealed class AvailabilityResponse
+{
+    public string Name { get; set; } = "";
+    public string Version { get; set; } = "";
+    public DateTimeOffset RetrievedAt { get; set; }
+    public int RegionsChecked { get; set; }
+    public int AvailableIn { get; set; }
+    public List<RegionAvailability> Regions { get; set; } = new();
+}
+
+public sealed class RegionAvailability
+{
+    public string Name { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string? Geography { get; set; }
+    /// <summary>available | absent | noCatalog | error</summary>
+    public string Status { get; set; } = "absent";
 }

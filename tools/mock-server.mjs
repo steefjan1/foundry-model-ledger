@@ -117,9 +117,10 @@ http.createServer((req, res) => {
   if (u.pathname === '/api/models') return json(res, buildCatalog(region));
   if (u.pathname.startsWith('/api/models/')) { const [, , , name, version] = u.pathname.split('/'); const m = buildCatalog(region).models.find(x => x.name === decodeURIComponent(name) && x.version === decodeURIComponent(version)); return m ? json(res, m) : json(res, { error: 'not found' }, 404); }
   if (u.pathname === '/api/meters') { const q = (u.searchParams.get('q') || '').toLowerCase(); const items = sample.meters.filter(m => !q || `${m.productName} ${m.skuName} ${m.meterName}`.toLowerCase().includes(q)); return json(res, { region, currency: CURRENCY, total: sample.meters.length, items }); }
+  if (u.pathname === '/api/availability') { const name = u.searchParams.get('name'), version = u.searchParams.get('version'); const has = sample.catalog.some(e => e.model.name === name && e.model.version === version); return json(res, { name, version, retrievedAt: new Date().toISOString(), regionsChecked: sample.regions.length, availableIn: has ? 2 : 0, regions: sample.regions.map((r, i) => ({ name: r.name, displayName: r.displayName, geography: r.geography, status: has && i < 2 ? 'available' : 'absent' })) }); }
   if (u.pathname === '/api/deployments') return json(res, deployments());
   if (u.pathname === '/' || u.pathname === '/index.html') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(html); }
   res.writeHead(404); res.end('not found');
-}).listen(port, () => console.log(`Foundry Model Explorer (sample mode) on http://localhost:${port}`));
+}).listen(port, () => console.log(`Foundry Model Ledger (sample mode) on http://localhost:${port}`));
 
 export { match, buildCatalog };

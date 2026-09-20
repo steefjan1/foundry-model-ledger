@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Runs the Foundry Model Explorer locally with Azure Functions Core Tools.
+  Runs the Foundry Model Ledger locally with Azure Functions Core Tools.
 
 .DESCRIPTION
   Creates src/FoundryModelExplorer/local.settings.json from the template (once), fills in the subscription

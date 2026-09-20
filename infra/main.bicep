@@ -20,7 +20,7 @@ param resourceGroupName string = ''
 
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
-var tags = { 'azd-env-name': environmentName, project: 'foundry-model-explorer' }
+var tags = { 'azd-env-name': environmentName, project: 'foundry-model-ledger' }
 
 resource rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourcesResourceGroups}${environmentName}'
@@ -41,8 +41,8 @@ module app 'app.bicep' = {
   }
 }
 
-// The explorer reads the model catalog, provider manifest, subscription locations and Resource Graph.
-// Reader on the subscription covers all four (Resource Graph honours the caller's RBAC).
+// The explorer reads the model catalog, provider manifest, subscription locations, accounts and deployments.
+// Reader on the subscription covers all of them.
 // A separate module: a role assignment's name must be known at deployment start, and the identity's
 // principal id is a runtime output, so the guid() is computed inside the module instead (BCP120).
 module readerAssignment 'reader-role.bicep' = {

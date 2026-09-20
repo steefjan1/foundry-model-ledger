@@ -49,6 +49,33 @@ public sealed class CatalogService
         return cached!;
     }
 
+    /// <summary>
+    /// The set of "name:version" ids a region carries, without prices or enrichment. Cheap enough to fan out over
+    /// every region for the availability check; cached per region for the catalog cache duration.
+    /// Returns null when the region has no Cognitive Services provider.
+    /// </summary>
+    public async Task<HashSet<string>?> GetModelIdsAsync(string region, CancellationToken ct)
+    {
+        region = region.ToLowerInvariant();
+        return await _cache.GetOrCreateAsync($"catalog-ids:{region}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(_options.CatalogCacheMinutes);
+            if (_options.UseSample)
+                return _sample.Catalog(region).Select(e => $"{e.Model.Name}:{e.Model.Version}").ToHashSet(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var url = $"subscriptions/{_options.SubscriptionId}/providers/Microsoft.CognitiveServices/locations/{region}/models?api-version={ApiVersion}";
+                var raw = await _arm.GetAllPagesAsync<ArmAccountModel>(url, ct);
+                return raw.Select(e => $"{e.Model.Name}:{e.Model.Version}").ToHashSet(StringComparer.OrdinalIgnoreCase);
+            }
+            catch (ArmException ex) when (ex.Body.Contains("NoRegisteredProviderFound", StringComparison.OrdinalIgnoreCase)
+                                       || ex.Body.Contains("LocationNotAvailableForResourceType", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+        });
+    }
+
     public async Task<ModelSummary?> GetModelAsync(string region, string currency, string name, string version, CancellationToken ct)
     {
         var catalog = await GetCatalogAsync(region, currency, ct);

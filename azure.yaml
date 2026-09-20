@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
-name: foundry-model-explorer
+name: foundry-model-ledger
 metadata:
-  template: foundry-model-explorer@0.1.0
+  template: foundry-model-ledger@0.1.0
 services:
   api:
     project: ./src/FoundryModelExplorer

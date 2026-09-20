@@ -6,27 +6,15 @@ using Microsoft.Extensions.Logging;
 namespace FoundryModelExplorer.Services;
 
 /// <summary>
-/// Lists every Microsoft.CognitiveServices/accounts/deployments in the subscription through Azure Resource Graph
-/// and joins each one to the catalog of its region, so a developer sees which of *their* deployments run on a
-/// version that is deprecating.
+/// Lists every model deployment in the subscription and joins each one to the catalog of its region, so a
+/// developer sees which of *their* deployments run on a version that is deprecating.
+///
+/// Resource Graph does not index Microsoft.CognitiveServices/accounts/deployments (a query returns zero rows even
+/// with deployments present), so this goes through ARM: list the accounts, then list the deployments per account.
+/// Reader on the subscription covers both.
 /// </summary>
 public sealed class DeploymentService
 {
-    private const string Query = """
-        resources
-        | where type =~ 'microsoft.cognitiveservices/accounts/deployments'
-        | extend accountName = tostring(split(id, '/')[8])
-        | project id, name, location, resourceGroup, accountName,
-                  modelName = tostring(properties.model.name),
-                  modelVersion = tostring(properties.model.version),
-                  modelFormat = tostring(properties.model.format),
-                  skuName = tostring(sku.name),
-                  capacity = toint(sku.capacity),
-                  provisioningState = tostring(properties.provisioningState),
-                  versionUpgradeOption = tostring(properties.versionUpgradeOption)
-        | order by accountName asc, name asc
-        """;
-
     private readonly ArmGateway _arm;
     private readonly CatalogService _catalog;
     private readonly ExplorerOptions _options;
@@ -88,6 +76,9 @@ public sealed class DeploymentService
             }
         }
 
+        response.AccountCount = _options.UseSample
+            ? rows.Select(r => r.AccountName).Distinct(StringComparer.OrdinalIgnoreCase).Count()
+            : _cache.TryGetValue("deployments:accounts", out int n) ? n : 0;
         response.Deployments = response.Deployments
             .OrderBy(d => d.DaysUntilDeprecation ?? int.MaxValue).ThenBy(d => d.AccountName).ThenBy(d => d.Name)
             .ToList();
@@ -96,38 +87,76 @@ public sealed class DeploymentService
 
     private async Task<List<DeploymentInfo>> LoadAsync(CancellationToken ct)
     {
-        var body = new
-        {
-            subscriptions = new[] { _options.SubscriptionId },
-            query = Query,
-            options = new { resultFormat = "objectArray", top = 1000 },
-        };
-        var result = await _arm.PostAsync<JsonElement>("providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01", body, ct);
+        const string apiVersion = "2024-10-01";
+        var sub = _options.SubscriptionId;
 
+        var accounts = await _arm.GetAllPagesAsync<JsonElement>(
+            $"subscriptions/{sub}/providers/Microsoft.CognitiveServices/accounts?api-version={apiVersion}", ct);
+        _log.LogInformation("ARM: {Count} Cognitive Services accounts", accounts.Count);
+        _cache.Set("deployments:accounts", accounts.Count, TimeSpan.FromMinutes(5));
+
+        // One deployments call per account, a few at a time.
         var list = new List<DeploymentInfo>();
-        if (!result.TryGetProperty("data", out var data)) return list;
-        foreach (var row in data.EnumerateArray())
+        var gate = new SemaphoreSlim(6);
+        var tasks = accounts.Select(async account =>
         {
-            string S(string p) => row.TryGetProperty(p, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
-            int? I(string p) => row.TryGetProperty(p, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : null;
+            var id = account.GetProperty("id").GetString() ?? "";
+            var accountName = account.GetProperty("name").GetString() ?? "";
+            var location = account.TryGetProperty("location", out var l) ? (l.GetString() ?? "").ToLowerInvariant() : "";
+            var resourceGroup = ResourceGroupOf(id);
 
-            list.Add(new DeploymentInfo
+            await gate.WaitAsync(ct);
+            try
             {
-                Id = S("id"),
-                Name = S("name"),
-                Region = S("location").ToLowerInvariant(),
-                ResourceGroup = S("resourceGroup"),
-                AccountName = S("accountName"),
-                ModelName = S("modelName"),
-                ModelVersion = S("modelVersion"),
-                ModelFormat = S("modelFormat"),
-                SkuName = S("skuName"),
-                Capacity = I("capacity"),
-                ProvisioningState = S("provisioningState"),
-                VersionUpgradeOption = S("versionUpgradeOption"),
-            });
-        }
-        _log.LogInformation("Resource Graph: {Count} deployments", list.Count);
+                var deployments = await _arm.GetAllPagesAsync<JsonElement>($"{id.TrimStart('/')}/deployments?api-version={apiVersion}", ct);
+                var rows = new List<DeploymentInfo>();
+                foreach (var d in deployments)
+                {
+                    var props = d.TryGetProperty("properties", out var pr) ? pr : default;
+                    var model = props.ValueKind == JsonValueKind.Object && props.TryGetProperty("model", out var mo) ? mo : default;
+                    var sku = d.TryGetProperty("sku", out var sk) ? sk : default;
+
+                    string S(JsonElement e, string name) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+                    int? I(JsonElement e, string name) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : null;
+
+                    rows.Add(new DeploymentInfo
+                    {
+                        Id = S(d, "id"),
+                        Name = S(d, "name"),
+                        Region = location,
+                        ResourceGroup = resourceGroup,
+                        AccountName = accountName,
+                        ModelName = S(model, "name"),
+                        ModelVersion = S(model, "version"),
+                        ModelFormat = S(model, "format"),
+                        SkuName = S(sku, "name"),
+                        Capacity = I(sku, "capacity"),
+                        ProvisioningState = S(props, "provisioningState"),
+                        VersionUpgradeOption = S(props, "versionUpgradeOption"),
+                    });
+                }
+                return rows;
+            }
+            catch (ArmException ex)
+            {
+                _log.LogWarning(ex, "Deployments of {Account} could not be listed", accountName);
+                return new List<DeploymentInfo>();
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }).ToList();
+
+        foreach (var rows in await Task.WhenAll(tasks)) list.AddRange(rows);
+        _log.LogInformation("ARM: {Count} model deployments across {Accounts} accounts", list.Count, accounts.Count);
         return list;
+    }
+
+    private static string ResourceGroupOf(string resourceId)
+    {
+        var parts = resourceId.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var i = Array.FindIndex(parts, p => p.Equals("resourceGroups", StringComparison.OrdinalIgnoreCase));
+        return i >= 0 && i + 1 < parts.Length ? parts[i + 1] : "";
     }
 }
