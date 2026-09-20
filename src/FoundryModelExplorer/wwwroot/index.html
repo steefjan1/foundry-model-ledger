@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azure Foundry Model Explorer</title>
+<style>
+  :root {
+    --ink: #1f2933; --ink-2: #52606d; --ink-3: #7b8794; --line: #e4e7eb; --bg: #f5f7fa; --panel: #fff;
+    --brand: #3b5bdb; --brand-2: #6741d9; --brand-soft: #eef2ff; --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --ok: #2f9e44; --warn: #e67700; --serious: #d9480f; --bad: #c92a2a; --ok-bg: #ebfbee; --warn-bg: #fff4e6; --serious-bg: #ffe8cc; --bad-bg: #ffe3e3; --unknown-bg: #f1f3f5;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); }
+  header { background: linear-gradient(90deg, #3b5bdb 0%, #6741d9 100%); color: #fff; padding: 22px 28px 18px; }
+  header h1 { margin: 0 0 4px; font-size: 26px; font-weight: 700; letter-spacing: -0.2px; }
+  header .sub { opacity: .9; font-size: 14px; }
+  header .sub span { opacity: .8; }
+  nav.tabs { background: #fff; border-bottom: 1px solid var(--line); padding: 0 28px; display: flex; gap: 4px; }
+  nav.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 14px 18px; font-size: 16px; color: var(--ink-2); cursor: pointer; }
+  nav.tabs button.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
+  main { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; padding: 20px 28px 40px; }
+  main > section { min-width: 0; }
+  main.full { grid-template-columns: 1fr; } main.full aside { display: none; }
+  td.caps { min-width: 250px; max-width: 330px; } td.caps .tag { font-size: 11px; }
+  td.nm { min-width: 190px; } td.nm .name { word-break: break-word; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+  .card h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+  label { display: block; font-size: 13px; color: var(--ink-2); margin: 12px 0 4px; }
+  select, input[type=search], input[type=text] { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid #cbd2d9; border-radius: 6px; background: #fff; color: var(--ink); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-block; border: 1px solid #cbd2d9; border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--ink-2); background: #fff; cursor: pointer; }
+  .chip.on { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: #fff; }
+  .tile .k { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--brand-2); font-weight: 600; }
+  .tile .v { font-family: var(--mono); font-size: 22px; margin: 6px 0 2px; }
+  .tile .d { font-size: 12px; color: var(--ink-3); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); padding: 8px 10px; border-bottom: 2px solid var(--line); white-space: nowrap; cursor: pointer; user-select: none; }
+  th.sorted::after { content: " ▾"; color: var(--brand); } th.sorted.asc::after { content: " ▴"; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr.model { cursor: pointer; } tr.model:hover { background: #f8f9ff; } tr.model.sel { background: var(--brand-soft); }
+  .name { color: var(--brand); font-weight: 600; }
+  .muted { color: var(--ink-3); font-size: 12px; }
+  .mono { font-family: var(--mono); font-size: 13px; }
+  .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 4px; border: 1px solid var(--line); background: #f8f9fa; color: var(--ink-2); margin: 1px 2px 1px 0; white-space: nowrap; }
+  .lvl { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .lvl.ok { background: var(--ok-bg); color: var(--ok); } .lvl.warning { background: var(--warn-bg); color: var(--warn); }
+  .lvl.serious { background: var(--serious-bg); color: var(--serious); } .lvl.deprecated { background: var(--bad-bg); color: var(--bad); }
+  .lvl.unknown { background: var(--unknown-bg); color: var(--ink-3); }
+  .status { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: #f1f3f5; color: var(--ink-2); white-space: nowrap; }
+  .status.GenerallyAvailable, .status.Stable { background: var(--ok-bg); color: var(--ok); }
+  .status.Preview { background: #e7f5ff; color: #1971c2; }
+  .status.Deprecating { background: var(--warn-bg); color: var(--warn); }
+  .status.Deprecated { background: var(--bad-bg); color: var(--bad); }
+  .bar { height: 5px; background: #eceff3; border-radius: 3px; margin-top: 5px; overflow: hidden; width: 110px; }
+  .bar i { display: block; height: 100%; background: var(--ok); }
+  .bar.warning i { background: var(--warn); } .bar.serious i { background: var(--serious); } .bar.deprecated i { background: var(--bad); }
+  .conf { font-size: 11px; color: var(--ink-3); }
+  #detail { margin-top: 20px; display: none; }
+  #detail.open { display: block; }
+  #detail h3 { margin: 0; font-size: 20px; } #detail .close { float: right; }
+  .kv { display: grid; grid-template-columns: 180px 1fr; gap: 4px 12px; font-size: 14px; }
+  .kv dt { color: var(--ink-2); } .kv dd { margin: 0; }
+  .section { margin-top: 18px; } .section h4 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); }
+  pre { background: #0b1220; color: #dbe4ff; padding: 12px; border-radius: 6px; overflow: auto; font-size: 12px; max-height: 420px; }
+  button.btn { font: inherit; padding: 7px 14px; border: 1px solid #cbd2d9; background: #fff; border-radius: 6px; cursor: pointer; }
+  button.btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar .grow { flex: 1; }
+  .notice { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 14px; }
+  .notice.err { background: var(--bad-bg); color: var(--bad); } .notice.warn { background: var(--warn-bg); color: var(--warn); } .notice.info { background: #e7f5ff; color: #1971c2; }
+  .empty { padding: 30px; text-align: center; color: var(--ink-3); }
+  .hide { display: none !important; }
+  footer { padding: 0 28px 30px; color: var(--ink-3); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Azure Foundry Model Explorer</h1>
+  <div class="sub">Which models a region carries, what they can do, what they cost per 1M tokens, and when they retire · <span>ARM model catalog → Azure Retail Prices → Resource Graph</span></div>
+</header>
+
+<nav class="tabs">
+  <button data-tab="models" class="active">Models</button>
+  <button data-tab="deployments">My deployments</button>
+  <button data-tab="meters">Price meters</button>
+</nav>
+
+<main>
+  <aside>
+    <div class="card" id="filters">
+      <h2>Region</h2>
+      <select id="region"></select>
+      <div class="muted" id="regionMeta" style="margin-top:6px"></div>
+
+      <label>Price currency</label>
+      <select id="currency">
+        <option value="USD">USD · US dollar</option>
+        <option value="EUR">EUR · Euro</option>
+        <option value="GBP">GBP · British pound</option>
+        <option value="CHF">CHF · Swiss franc</option>
+        <option value="SEK">SEK · Swedish krona</option>
+        <option value="DKK">DKK · Danish krone</option>
+        <option value="NOK">NOK · Norwegian krone</option>
+        <option value="JPY">JPY · Japanese yen</option>
+        <option value="AUD">AUD · Australian dollar</option>
+        <option value="CAD">CAD · Canadian dollar</option>
+        <option value="INR">INR · Indian rupee</option>
+        <option value="BRL">BRL · Brazilian real</option>
+        <option value="KRW">KRW · South Korean won</option>
+        <option value="NZD">NZD · New Zealand dollar</option>
+        <option value="TWD">TWD · Taiwan dollar</option>
+      </select>
+
+      <h2 style="margin-top:22px">Filters</h2>
+      <label>Search (name, version, capability)</label>
+      <input type="search" id="q" placeholder="gpt-5.6, embedding, chatCompletion…">
+
+      <label>Publisher</label>
+      <select id="publisher"><option value="">All publishers</option></select>
+
+      <div class="row">
+        <div><label>Lifecycle</label>
+          <select id="status">
+            <option value="">All</option>
+            <option value="GenerallyAvailable">Generally available</option>
+            <option value="Preview">Preview</option>
+            <option value="Deprecating">Deprecating</option>
+            <option value="Deprecated">Deprecated</option>
+          </select></div>
+        <div><label>Modality</label>
+          <select id="modality">
+            <option value="">All</option>
+            <option value="chat">Chat / reasoning</option>
+            <option value="embedding">Embeddings</option>
+            <option value="image">Image</option>
+            <option value="audio">Speech / audio</option>
+            <option value="realtime">Realtime</option>
+            <option value="video">Video</option>
+            <option value="router">Router</option>
+            <option value="other">Other</option>
+          </select></div>
+      </div>
+
+      <label>Deprecation window</label>
+      <select id="window">
+        <option value="">Any</option>
+        <option value="90">Retires within 90 days</option>
+        <option value="365">Retires within a year</option>
+        <option value="past">Already past retirement date</option>
+        <option value="none">No retirement date published</option>
+      </select>
+
+      <label>Capabilities (must have all)</label>
+      <div class="chips" id="capChips"></div>
+
+      <label>Deployment type</label>
+      <div class="chips" id="skuChips"></div>
+
+      <label style="margin-top:14px"><input type="checkbox" id="defaultOnly"> Default versions only</label>
+      <label><input type="checkbox" id="pricedOnly"> Only models with a matched price</label>
+
+      <div style="margin-top:16px; display:flex; gap:8px">
+        <button class="btn" id="reset">Reset filters</button>
+        <button class="btn" id="exportCsv">Export CSV</button>
+      </div>
+    </div>
+  </aside>
+
+  <section>
+    <div id="notices"></div>
+
+    <div id="tab-models">
+      <div class="tiles" id="tiles"></div>
+      <div class="card">
+        <div class="toolbar">
+          <h2 style="margin:0">Catalog</h2>
+          <span class="muted" id="count"></span>
+          <span class="grow"></span>
+          <span class="muted" id="retrieved"></span>
+          <button class="btn" id="refresh" title="Clear the server cache and reload the catalog, meters and regions">Refresh data</button>
+        </div>
+        <div style="overflow:auto">
+          <table id="grid">
+            <thead><tr>
+              <th data-k="name">Model</th>
+              <th data-k="version">Version</th>
+              <th data-k="lifecycleStatus">Lifecycle</th>
+              <th>Capabilities</th>
+              <th data-k="daysUntilDeprecation">Retires</th>
+              <th data-k="price.inputPer1M" class="num">Input /1M</th>
+              <th data-k="price.outputPer1M" class="num">Output /1M</th>
+              <th>Deployment types</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="empty hide" id="emptyModels">No models match these filters.</div>
+      </div>
+
+      <div class="card" id="detail">
+        <button class="btn close" id="closeDetail">Close</button>
+        <h3 id="dTitle"></h3>
+        <div class="muted" id="dSub"></div>
+        <div class="section"><h4>Identity and lifecycle</h4><dl class="kv" id="dIdentity"></dl></div>
+        <div class="section"><h4>Capabilities as reported by ARM</h4><dl class="kv" id="dCaps"></dl></div>
+        <div class="section"><h4>Deployment types (SKUs) and capacity</h4><div style="overflow:auto"><table id="dSkus"><thead><tr><th>SKU</th><th>Usage name</th><th class="num">Min</th><th class="num">Default</th><th class="num">Max</th><th class="num">Step</th><th>SKU retirement</th></tr></thead><tbody></tbody></table></div></div>
+        <div class="section"><h4>Retail price meters matched to this model <span class="conf" id="dConf"></span></h4><div style="overflow:auto"><table id="dPrices"><thead><tr><th>Meter</th><th>Product</th><th>Direction</th><th>Deployment</th><th>Tier</th><th>Context</th><th class="num">Retail</th><th>Unit</th><th class="num">Per 1M</th></tr></thead><tbody></tbody></table></div><div class="muted" id="dPriceNote"></div></div>
+        <div class="section"><h4>Raw JSON</h4><pre id="dJson"></pre></div>
+      </div>
+    </div>
+
+    <div id="tab-deployments" class="hide">
+      <div class="card">
+        <div class="toolbar">
+          <h2 style="margin:0">Deployments in this subscription</h2>
+          <span class="muted" id="depCount"></span>
+          <span class="grow"></span>
+          <button class="btn" id="reloadDeps">Reload</button>
+        </div>
+        <div class="muted" style="margin-bottom:10px">Every Microsoft.CognitiveServices/accounts/deployments resource, joined to the catalog of its own region. Sorted by soonest retirement.</div>
+        <div style="overflow:auto">
+          <table id="depGrid">
+            <thead><tr><th>Deployment</th><th>Account</th><th>Region</th><th>Model</th><th>Version</th><th>SKU</th><th class="num">Capacity</th><th>Upgrade option</th><th>Lifecycle</th><th>Retires</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="empty hide" id="emptyDeps">No deployments found (or Resource Graph access is missing).</div>
+      </div>
+    </div>
+
+    <div id="tab-meters" class="hide">
+      <div class="card">
+        <div class="toolbar">
+          <h2 style="margin:0">Retail price meters · serviceName eq 'Foundry Models'</h2>
+          <span class="muted" id="meterCount"></span>
+          <span class="grow"></span>
+          <input type="search" id="meterQ" placeholder="filter meters… e.g. 5.6 sol" style="width:260px">
+        </div>
+        <div class="muted" style="margin-bottom:10px">The raw meters the matcher works from. Meter names are written for invoices ("5.6 sol ShortCo Cd Inp Std DZ 1M Tokens"), which is why the Models tab shows a confidence level next to every price.</div>
+        <div style="overflow:auto">
+          <table id="meterGrid">
+            <thead><tr><th>Product</th><th>SKU</th><th>Meter</th><th class="num">Retail</th><th>Unit</th><th class="num">Per 1M</th><th>Type</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>Prices are public retail list prices from the Azure Retail Prices API and are matched to catalog models heuristically; always confirm on the Azure pricing page before committing a budget. Retirement dates come from the ARM model catalog (deprecation.inference).</footer>
+
+<script>
+(function () {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const state = { region: null, currency: 'USD', catalog: null, models: [], caps: new Set(), skus: new Set(), sortKey: 'name', sortAsc: true, selected: null, deployments: null, meters: null };
+
+  // ---------- helpers ----------
+  const symbols = { USD: '$', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', KRW: '₩', BRL: 'R$', AUD: 'A$', CAD: 'C$', NZD: 'NZ$', TWD: 'NT$' };
+  const fmtMoney = (v, c) => v == null ? '<span class="muted">—</span>' : `${symbols[c] || c + ' '}${v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(2) : v.toFixed(3)}`;
+  const fmtDate = d => d ? new Date(d).toISOString().slice(0, 10) : '—';
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const get = (o, path) => path.split('.').reduce((a, k) => a == null ? a : a[k], o);
+  const levelLabel = { ok: 'OK', warning: 'Within a year', serious: 'Within 90 days', deprecated: 'Retired', unknown: 'No date' };
+  const levelIcon = { ok: '●', warning: '▲', serious: '▲', deprecated: '■', unknown: '○' };
+
+  // Chat-style capability flags are the norm; show the distinguishing ones first and fold the rest.
+  const capOrder = ['chatCompletion', 'responses', 'toolCalling', 'imageInput', 'reasoning', 'embeddings', 'imageGenerations', 'videoGenerations', 'audio', 'realtime', 'fineTune', 'assistants', 'jsonSchemaResponse', 'jsonObjectResponse', 'inference'];
+  function capChips(caps) {
+    if (!caps.length) return '<span class="muted">—</span>';
+    const sorted = [...caps].sort((a, b) => (capOrder.indexOf(a) + 1 || 99) - (capOrder.indexOf(b) + 1 || 99));
+    const shown = sorted.slice(0, 4), rest = sorted.slice(4);
+    return shown.map(x => `<span class="tag">${esc(x)}</span>`).join('') + (rest.length ? `<span class="tag" title="${esc(rest.join(', '))}">+${rest.length}</span>` : '');
+  }
+  const skuShort = s => ({ Standard: 'Regional', GlobalStandard: 'Global', DataZoneStandard: 'DataZone', ProvisionedManaged: 'PTU', GlobalProvisionedManaged: 'Global PTU', DataZoneProvisionedManaged: 'DZ PTU', GlobalBatch: 'Batch', DataZoneBatch: 'DZ Batch' }[s] || s);
+
+  function retiresCell(m) {
+    if (!m.deprecationInference) return `<span class="lvl unknown">${levelIcon.unknown} no date</span>`;
+    const days = m.daysUntilDeprecation;
+    const pct = Math.max(0, Math.min(100, days / 730 * 100));
+    const txt = days < 0 ? `${-days} d ago` : `${days} d`;
+    return `<div><span class="lvl ${m.deprecationLevel}">${levelIcon[m.deprecationLevel]} ${fmtDate(m.deprecationInference)} · ${txt}</span><div class="bar ${m.deprecationLevel}"><i style="width:${pct}%"></i></div></div>`;
+  }
+
+  async function api(path) {
+    const r = await fetch(path);
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { const e = new Error(body.error || r.statusText); e.body = body; throw e; }
+    return body;
+  }
+
+  function notice(kind, html, scope = 'catalog') { $('#notices').insertAdjacentHTML('beforeend', `<div class="notice ${kind}" data-scope="${scope}">${html}</div>`); }
+  function clearNotices(scope = 'catalog') { $$(`#notices [data-scope="${scope}"]`).forEach(n => n.remove()); }
+
+  // ---------- regions ----------
+  async function loadRegions() {
+    clearNotices('regions');
+    try {
+      const r = await api('/api/regions');
+      const sel = $('#region');
+      sel.innerHTML = '';
+      let geo = null, group = null;
+      for (const reg of r.regions) {
+        if (reg.geography !== geo) { geo = reg.geography; group = document.createElement('optgroup'); group.label = geo || 'Other'; sel.appendChild(group); }
+        const o = document.createElement('option'); o.value = reg.name; o.textContent = `${reg.displayName} (${reg.name})${reg.hostsFoundry === false ? ' · no AI services' : ''}`; group.appendChild(o);
+      }
+      const wanted = new URLSearchParams(location.search).get('region') || r.default;
+      sel.value = wanted; if (!sel.value) sel.value = r.default;
+      state.region = sel.value;
+    } catch (e) {
+      notice('err', `<b>Could not list regions</b> (falling back to swedencentral). ${esc(e.message)} ${esc(e.body?.hint || '')}${e.body?.detail ? `<pre style="margin-top:8px">${esc(e.body.detail)}</pre>` : ''}`, 'regions');
+      const sel = $('#region'); sel.innerHTML = '<option value="swedencentral">swedencentral</option>'; state.region = 'swedencentral';
+    }
+  }
+
+  // ---------- catalog ----------
+  function resetCatalogView(message) {
+    state.catalog = null; state.models = []; state.selected = null;
+    $('#detail').classList.remove('open');
+    $('#tiles').innerHTML = ''; $('#grid tbody').innerHTML = ''; $('#capChips').innerHTML = ''; $('#skuChips').innerHTML = '';
+    $('#count').textContent = ''; $('#retrieved').textContent = ''; $('#regionMeta').textContent = message || '';
+    $('#emptyModels').textContent = message || 'No models match these filters.';
+    $('#emptyModels').classList.remove('hide');
+  }
+
+  async function loadCatalog() {
+    clearNotices();
+    $('#count').textContent = 'loading…';
+    $('#grid tbody').innerHTML = '';
+    try {
+      const c = await api(`/api/models?region=${encodeURIComponent(state.region)}&currency=${encodeURIComponent(state.currency)}`);
+      if (c.note) { resetCatalogView('no model catalog in this region'); notice('info', esc(c.note)); return; }
+      state.catalog = c; state.models = c.models;
+      $('#emptyModels').textContent = 'No models match these filters.';
+      for (const w of c.warnings || []) notice('warn', esc(w));
+      if (c.source === 'sample') notice('info', 'Showing the embedded <b>sample snapshot</b> (CATALOG_SOURCE=sample). Point AZURE_SUBSCRIPTION_ID at a subscription and set CATALOG_SOURCE=azure for live data.');
+      $('#retrieved').textContent = `retrieved ${new Date(c.retrievedAt).toLocaleString()} · ${c.meterCount} price meters · ${c.currency}`;
+      $('#regionMeta').textContent = c.stats.versions ? `${c.stats.versions} model versions from ${c.stats.publishers} publishers` : 'no model catalog in this region';
+      buildFacets(); renderTiles(); render();
+      history.replaceState(null, '', `?region=${encodeURIComponent(state.region)}&currency=${encodeURIComponent(state.currency)}`);
+    } catch (e) {
+      resetCatalogView('catalog could not be loaded');
+      notice('err', friendlyError(e));
+    }
+  }
+
+  // Turn an API failure into one sentence a developer can act on; the raw ARM body stays behind a toggle.
+  function friendlyError(e) {
+    const detail = e.body?.detail || '';
+    const region = esc(state.region);
+    let msg;
+    if (/NoRegisteredProviderFound|LocationNotAvailableForResourceType/i.test(detail)) msg = `<b>${region} has no Azure AI services.</b> Microsoft.CognitiveServices is not offered in this region, so there is no model catalog. Pick a region without the "no AI services" marker.`;
+    else if (e.body?.status === 401 || e.body?.status === 403 || /Authorization|Forbidden/i.test(detail)) msg = `<b>Not allowed to read the catalog.</b> The identity running this app needs the Reader role on the subscription.`;
+    else if (/CredentialUnavailable|No Azure credential/i.test(e.message + detail)) msg = `<b>No Azure sign-in.</b> Run <code>az login</code> locally, or give the Function App a managed identity.`;
+    else if (/429|Too Many Requests/i.test(e.message + detail)) msg = `<b>Azure is rate-limiting requests right now.</b> Wait a moment and press Refresh data.`;
+    else if (/InvalidSubscriptionId|SubscriptionNotFound/i.test(detail)) msg = `<b>Subscription not found.</b> Check AZURE_SUBSCRIPTION_ID in the app settings.`;
+    else msg = `<b>Could not load the catalog for ${region}.</b> ${esc(e.message)}${e.body?.hint ? ' ' + esc(e.body.hint) : ''}`;
+    return detail ? `${msg}<details style="margin-top:8px"><summary class="muted" style="cursor:pointer">Technical details</summary><pre style="margin-top:8px">${esc(detail)}</pre></details>` : msg;
+  }
+
+  function buildFacets() {
+    const pubs = [...new Set(state.models.map(m => m.publisher))].sort();
+    const pSel = $('#publisher'); const cur = pSel.value;
+    pSel.innerHTML = '<option value="">All publishers</option>' + pubs.map(p => `<option>${esc(p)}</option>`).join('');
+    pSel.value = pubs.includes(cur) ? cur : '';
+
+    const capCount = {};
+    for (const m of state.models) for (const c of m.capabilities) capCount[c] = (capCount[c] || 0) + 1;
+    const caps = Object.keys(capCount).sort((a, b) => capCount[b] - capCount[a]);
+    $('#capChips').innerHTML = caps.map(c => `<span class="chip ${state.caps.has(c) ? 'on' : ''}" data-cap="${esc(c)}">${esc(c)} <span class="muted">${capCount[c]}</span></span>`).join('');
+
+    const skuCount = {};
+    for (const m of state.models) for (const s of m.deploymentTypes) skuCount[s] = (skuCount[s] || 0) + 1;
+    const skus = Object.keys(skuCount).sort();
+    $('#skuChips').innerHTML = skus.map(s => `<span class="chip ${state.skus.has(s) ? 'on' : ''}" data-sku="${esc(s)}">${esc(s)} <span class="muted">${skuCount[s]}</span></span>`).join('');
+  }
+
+  function renderTiles() {
+    const s = state.catalog.stats;
+    const t = [
+      ['Models', s.models, `${s.versions} versions`],
+      ['Publishers', s.publishers, state.catalog.region],
+      ['Generally available', s.generallyAvailable, `${s.preview} in preview`],
+      ['Deprecating', s.deprecating, 'lifecycleStatus = Deprecating'],
+      ['Retire ≤ 90 days', s.deprecatingWithin90Days, `${s.deprecated} already retired`],
+      ['With a price', s.withPrice, `of ${s.versions} matched to a meter`],
+    ];
+    $('#tiles').innerHTML = t.map(([k, v, d]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${esc(d)}</div></div>`).join('');
+  }
+
+  function filtered() {
+    const q = $('#q').value.trim().toLowerCase();
+    const pub = $('#publisher').value, st = $('#status').value, mod = $('#modality').value, win = $('#window').value;
+    const defOnly = $('#defaultOnly').checked, pricedOnly = $('#pricedOnly').checked;
+    return state.models.filter(m => {
+      if (pub && m.publisher !== pub) return false;
+      if (st && !(m.lifecycleStatus === st || (st === 'GenerallyAvailable' && m.lifecycleStatus === 'Stable'))) return false;
+      if (mod && m.modality !== mod) return false;
+      if (defOnly && !m.isDefaultVersion) return false;
+      if (pricedOnly && m.price.inputPer1M == null && m.price.outputPer1M == null) return false;
+      if (win === '90' && !(m.daysUntilDeprecation != null && m.daysUntilDeprecation >= 0 && m.daysUntilDeprecation < 90)) return false;
+      if (win === '365' && !(m.daysUntilDeprecation != null && m.daysUntilDeprecation >= 0 && m.daysUntilDeprecation < 365)) return false;
+      if (win === 'past' && !(m.daysUntilDeprecation != null && m.daysUntilDeprecation < 0)) return false;
+      if (win === 'none' && m.deprecationInference) return false;
+      for (const c of state.caps) if (!m.capabilities.includes(c)) return false;
+      for (const s of state.skus) if (!m.deploymentTypes.includes(s)) return false;
+      if (q) {
+        const hay = `${m.name} ${m.version} ${m.publisher} ${m.family} ${m.capabilities.join(' ')} ${m.lifecycleStatus}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function render() {
+    const rows = filtered();
+    const k = state.sortKey, asc = state.sortAsc ? 1 : -1;
+    rows.sort((a, b) => {
+      const va = get(a, k), vb = get(b, k);
+      if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1;
+      return (typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb))) * asc;
+    });
+    $$('#grid th').forEach(th => { th.classList.toggle('sorted', th.dataset.k === k); th.classList.toggle('asc', th.dataset.k === k && state.sortAsc); });
+    $('#count').textContent = `${rows.length} of ${state.models.length} model versions · prices in ${state.catalog.currency}`;
+    $('#emptyModels').classList.toggle('hide', rows.length > 0);
+    const c = state.catalog.currency;
+    $('#grid tbody').innerHTML = rows.map(m => `
+      <tr class="model ${state.selected === m.id ? 'sel' : ''}" data-id="${esc(m.id)}">
+        <td class="nm"><div class="name">${esc(m.name)}</div><div class="muted">${esc(m.publisher)} · ${esc(m.family)} · ${esc(m.modality)}</div></td>
+        <td class="mono" style="white-space:nowrap">${esc(m.version)}${m.isDefaultVersion ? '<div><span class="tag">default</span></div>' : ''}</td>
+        <td><span class="status ${esc(m.lifecycleStatus)}">${esc(m.lifecycleStatus)}</span></td>
+        <td class="caps">${capChips(m.capabilities)}</td>
+        <td>${retiresCell(m)}</td>
+        <td class="num">${fmtMoney(m.price.inputPer1M, c)}${m.price.confidence !== 'none' ? `<div class="conf">${esc(m.price.confidence)} · ${esc(m.price.headlineDeployment || '')}</div>` : ''}</td>
+        <td class="num">${fmtMoney(m.price.outputPer1M, c)}${m.price.cachedInputPer1M != null ? `<div class="conf">cached in ${fmtMoney(m.price.cachedInputPer1M, c)}</div>` : ''}</td>
+        <td style="min-width:150px">${m.deploymentTypes.map(x => `<span class="tag" title="${esc(x)}">${esc(skuShort(x))}</span>`).join('') || '<span class="muted">—</span>'}</td>
+      </tr>`).join('');
+  }
+
+  function showDetail(id) {
+    const m = state.models.find(x => x.id === id); if (!m) return;
+    state.selected = id; render();
+    const c = state.catalog.currency;
+    $('#dTitle').textContent = `${m.name} · ${m.version}`;
+    $('#dSub').textContent = `${m.publisher} · ${m.family} · ${m.kind || ''} · ${state.catalog.region}`;
+    $('#dIdentity').innerHTML = [
+      ['Lifecycle', `<span class="status ${esc(m.lifecycleStatus)}">${esc(m.lifecycleStatus)}</span>`],
+      ['Default version', m.isDefaultVersion ? 'yes' : 'no'],
+      ['Format', esc(m.format)],
+      ['Added to catalog', fmtDate(m.createdAt)],
+      ['Inference retirement', m.deprecationInference ? `${fmtDate(m.deprecationInference)} (${m.daysUntilDeprecation} days) <span class="lvl ${m.deprecationLevel}">${levelIcon[m.deprecationLevel]} ${levelLabel[m.deprecationLevel]}</span>` : 'not published'],
+      ['Fine-tune retirement', fmtDate(m.deprecationFineTune)],
+      ['Max capacity', m.maxCapacity ?? '—'],
+      ['Headline price', m.price.inputPer1M != null || m.price.outputPer1M != null ? `${fmtMoney(m.price.inputPer1M, c)} in · ${fmtMoney(m.price.outputPer1M, c)} out per 1M tokens (${esc(m.price.headlineDeployment)} · ${esc(m.price.headlineTier)})` : 'no meter matched'],
+    ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+    const caps = Object.entries(m.capabilityDetails);
+    $('#dCaps').innerHTML = caps.length ? caps.map(([k, v]) => `<dt>${esc(k)}</dt><dd class="mono">${esc(v)}</dd>`).join('') : '<dt>—</dt><dd>none reported</dd>';
+    $('#dSkus tbody').innerHTML = m.skus.map(s => `<tr><td class="mono">${esc(s.name)}</td><td class="mono muted">${esc(s.usageName || '')}</td><td class="num">${s.capacityMin ?? ''}</td><td class="num">${s.capacityDefault ?? ''}</td><td class="num">${s.capacityMax ?? ''}</td><td class="num">${s.capacityStep ?? ''}</td><td>${fmtDate(s.deprecationDate)}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">no SKUs listed</td></tr>';
+    $('#dConf').textContent = m.price.lines.length ? `· confidence: ${m.price.confidence} · ${m.price.lines.length} meters` : '· none matched';
+    $('#dPrices tbody').innerHTML = m.price.lines.map(l => `<tr><td class="mono">${esc(l.meterName)}</td><td class="muted">${esc(l.productName)}</td><td>${esc(l.direction)}</td><td>${esc(l.deployment)}</td><td>${esc(l.tier)}</td><td>${esc(l.context)}</td><td class="num">${l.retailPrice}</td><td class="mono">${esc(l.unitOfMeasure)}</td><td class="num">${l.pricePer1M != null ? fmtMoney(l.pricePer1M, c) : '—'}</td></tr>`).join('') || '<tr><td colspan="9" class="muted">No retail meter could be matched to this model name in this region.</td></tr>';
+    $('#dPriceNote').textContent = m.price.confidence === 'exact' ? 'exact: a meter carries a date token that matches this version.' : m.price.confidence === 'name' ? 'name: matched on the model name only; the meter may apply to several versions.' : m.price.confidence === 'loose' ? 'loose: matched on the first tokens of a long catalog name; verify against the pricing page.' : '';
+    $('#dJson').textContent = JSON.stringify(m, null, 2);
+    $('#detail').classList.add('open');
+    $('#detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------- deployments ----------
+  async function loadDeployments(force) {
+    if (state.deployments && !force) return;
+    $('#depCount').textContent = 'loading…'; $('#depGrid tbody').innerHTML = '';
+    try {
+      const d = await api('/api/deployments');
+      state.deployments = d;
+      for (const w of d.warnings || []) notice('warn', esc(w));
+      $('#depCount').textContent = `${d.deployments.length} deployments`;
+      $('#emptyDeps').classList.toggle('hide', d.deployments.length > 0);
+      $('#depGrid tbody').innerHTML = d.deployments.map(x => `
+        <tr><td class="name">${esc(x.name)}</td><td>${esc(x.accountName)}<div class="muted">${esc(x.resourceGroup)}</div></td><td class="mono">${esc(x.region)}</td>
+        <td>${esc(x.modelName)}</td><td class="mono">${esc(x.modelVersion)}</td><td class="mono">${esc(x.skuName)}</td><td class="num">${x.capacity ?? ''}</td>
+        <td class="mono muted">${esc(x.versionUpgradeOption || '')}</td>
+        <td>${x.inCatalog ? `<span class="status ${esc(x.lifecycleStatus)}">${esc(x.lifecycleStatus)}</span>` : '<span class="muted">not in region catalog</span>'}</td>
+        <td>${retiresCell({ deprecationInference: x.deprecationInference, daysUntilDeprecation: x.daysUntilDeprecation, deprecationLevel: x.deprecationLevel })}</td></tr>`).join('');
+    } catch (e) {
+      $('#depCount').textContent = '';
+      notice('err', `<b>Deployments failed.</b> ${esc(e.message)} ${esc(e.body?.hint || '')}`);
+    }
+  }
+
+  // ---------- meters ----------
+  async function loadMeters(force) {
+    if (state.meters && state.meters.region === state.region && state.meters.currency === state.currency && !force) { renderMeters(); return; }
+    $('#meterCount').textContent = 'loading…';
+    try {
+      state.meters = await api(`/api/meters?region=${encodeURIComponent(state.region)}&currency=${encodeURIComponent(state.currency)}`);
+      renderMeters();
+    } catch (e) { $('#meterCount').textContent = ''; notice('err', `<b>Meters failed.</b> ${esc(e.message)}`); }
+  }
+  function per1M(price, unit, name) {
+    if (!/token/i.test(name) && !/token|^1[KM]$/i.test(unit)) return null;
+    const m = /^(\d+(?:\.\d+)?)\s*([KM]?)/i.exec(unit.trim()); if (!m) return null;
+    const per = parseFloat(m[1]) * ({ K: 1e3, M: 1e6 }[m[2].toUpperCase()] || 1);
+    return per > 0 ? price * 1e6 / per : null;
+  }
+  function renderMeters() {
+    const q = $('#meterQ').value.trim().toLowerCase();
+    const items = state.meters.items.filter(i => !q || `${i.productName} ${i.skuName} ${i.meterName}`.toLowerCase().includes(q));
+    $('#meterCount').textContent = `${items.length} of ${state.meters.total} meters · ${state.meters.region} · ${state.meters.currency}`;
+    $('#meterGrid tbody').innerHTML = items.slice(0, 800).map(i => { const p = per1M(i.retailPrice, i.unitOfMeasure || '', i.meterName || ''); return `<tr><td class="muted">${esc(i.productName)}</td><td class="mono">${esc(i.skuName)}</td><td class="mono">${esc(i.meterName)}</td><td class="num">${i.retailPrice}</td><td class="mono">${esc(i.unitOfMeasure)}</td><td class="num">${p == null ? '—' : fmtMoney(p, state.meters.currency)}</td><td class="muted">${esc(i.type)}</td></tr>`; }).join('');
+  }
+
+  // ---------- csv ----------
+  function exportCsv() {
+    const rows = filtered();
+    const head = ['name', 'version', 'publisher', 'family', 'modality', 'lifecycleStatus', 'isDefaultVersion', 'capabilities', 'deprecationInference', 'daysUntilDeprecation', 'inputPer1M', 'outputPer1M', 'cachedInputPer1M', 'priceConfidence', 'deploymentTypes'];
+    const line = m => [m.name, m.version, m.publisher, m.family, m.modality, m.lifecycleStatus, m.isDefaultVersion, m.capabilities.join('|'), fmtDate(m.deprecationInference), m.daysUntilDeprecation ?? '', m.price.inputPer1M ?? '', m.price.outputPer1M ?? '', m.price.cachedInputPer1M ?? '', m.price.confidence, m.deploymentTypes.join('|')]
+      .map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+    const csv = [head.join(','), ...rows.map(line)].join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `foundry-models-${state.region}.csv`; a.click();
+  }
+
+  // ---------- wiring ----------
+  $('#region').addEventListener('change', e => { state.region = e.target.value; state.selected = null; $('#detail').classList.remove('open'); loadCatalog(); if (!$('#tab-meters').classList.contains('hide')) loadMeters(true); });
+  ['#q', '#publisher', '#status', '#modality', '#window', '#defaultOnly', '#pricedOnly'].forEach(s => $(s).addEventListener('input', render));
+  $('#capChips').addEventListener('click', e => { const c = e.target.closest('[data-cap]'); if (!c) return; const k = c.dataset.cap; state.caps.has(k) ? state.caps.delete(k) : state.caps.add(k); c.classList.toggle('on'); render(); });
+  $('#skuChips').addEventListener('click', e => { const c = e.target.closest('[data-sku]'); if (!c) return; const k = c.dataset.sku; state.skus.has(k) ? state.skus.delete(k) : state.skus.add(k); c.classList.toggle('on'); render(); });
+  $('#reset').addEventListener('click', () => { ['#q'].forEach(s => $(s).value = ''); ['#publisher', '#status', '#modality', '#window'].forEach(s => $(s).value = ''); $('#defaultOnly').checked = false; $('#pricedOnly').checked = false; state.caps.clear(); state.skus.clear(); buildFacets(); render(); });
+  $('#exportCsv').addEventListener('click', exportCsv);
+  $('#refresh').addEventListener('click', async () => {
+    $('#refresh').disabled = true;
+    try { await fetch('/api/cache/clear', { method: 'POST' }); } catch (e) { /* fall through: reload anyway */ }
+    state.meters = null; state.deployments = null;
+    await loadRegions(); await loadCatalog();
+    $('#refresh').disabled = false;
+  });
+  $('#grid thead').addEventListener('click', e => { const th = e.target.closest('th[data-k]'); if (!th) return; if (state.sortKey === th.dataset.k) state.sortAsc = !state.sortAsc; else { state.sortKey = th.dataset.k; state.sortAsc = true; } render(); });
+  $('#grid tbody').addEventListener('click', e => { const tr = e.target.closest('tr[data-id]'); if (tr) showDetail(tr.dataset.id); });
+  $('#closeDetail').addEventListener('click', () => { $('#detail').classList.remove('open'); state.selected = null; render(); });
+  $('#reloadDeps').addEventListener('click', () => loadDeployments(true));
+  $('#meterQ').addEventListener('input', renderMeters);
+  $$('nav.tabs button').forEach(b => b.addEventListener('click', () => {
+    $$('nav.tabs button').forEach(x => x.classList.toggle('active', x === b));
+    ['models', 'deployments', 'meters'].forEach(t => $('#tab-' + t).classList.toggle('hide', t !== b.dataset.tab));
+    $('main').classList.toggle('full', b.dataset.tab === 'deployments');
+    if (b.dataset.tab === 'deployments') loadDeployments(false);
+    if (b.dataset.tab === 'meters') loadMeters(false);
+  }));
+
+  $('#currency').addEventListener('change', e => { state.currency = e.target.value; loadCatalog(); if (!$('#tab-meters').classList.contains('hide')) loadMeters(true); });
+
+  (async () => {
+    const params = new URLSearchParams(location.search);
+    let cur = (params.get('currency') || '').toUpperCase();
+    if (!cur) { try { cur = (await api('/api/health')).currency || 'USD'; } catch (e) { cur = 'USD'; } }
+    if (![...$('#currency').options].some(o => o.value === cur)) { const o = document.createElement('option'); o.value = cur; o.textContent = cur; $('#currency').appendChild(o); }
+    $('#currency').value = cur; state.currency = cur;
+    await loadRegions(); await loadCatalog();
+  })();
+})();
+</script>
+</body>
+</html>

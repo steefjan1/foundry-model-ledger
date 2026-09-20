@@ -1,0 +1,15 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+
+    "AZURE_SUBSCRIPTION_ID": "<your subscription id>",
+    "DEFAULT_REGION": "swedencentral",
+
+    "CATALOG_SOURCE": "azure",
+    "PRICE_CURRENCY": "USD",
+    "CATALOG_CACHE_MINUTES": "60",
+    "PRICES_CACHE_MINUTES": "360"
+  }
+}
