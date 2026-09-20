@@ -14,7 +14,7 @@ The answers exist in Azure, but in three places that were never designed to be r
 | What they cost | [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices), `serviceName eq 'Foundry Models'` | Public, no auth, paged; meters are matched to catalog models by a tokenising matcher (see below) |
 | Which of *my* deployments run on a retiring version | ARM: the subscription's `Microsoft.CognitiveServices/accounts` and each account's `/deployments` | Listed per account (Resource Graph does not index deployments), joined to the catalog of each deployment's region |
 
-![Models tab](docs/models.png)
+![Foundry Model Ledger models tab](docs/models.png)
 
 ## What you get
 
@@ -25,6 +25,10 @@ The answers exist in Azure, but in three places that were never designed to be r
 **My deployments tab.** All model deployments in every Cognitive Services / Foundry account of the subscription, joined to their region's catalog, sorted by soonest retirement, with the `versionUpgradeOption` so you can see whether Azure will auto-upgrade them.
 
 **Price meters tab.** The raw Retail Prices rows for the region, searchable, so you can check the matcher's evidence.
+
+![Detail panel with SKUs, matched meters and region availability](docs/availability.png)
+
+![My deployments tab](docs/deployments.png)
 
 ## Why prices need a matcher
 
